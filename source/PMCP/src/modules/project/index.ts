@@ -22,11 +22,14 @@ export type { ProjectDetail, ProjectFormOptions, ProjectViewMode, SearchProjects
 export type { ProjectView, StageProgressView, StageRights, StageView } from './application/view-models';
 export { updateStage } from './application/update-stage';
 export type { UpdateStageInput, UpdateStageResult } from './application/update-stage';
+export { applyCardRevision, getCardStageTarget, startProjectFromCard } from './application/card-link';
+export type { CardRevisionInput, CardRevisionOutcome, CardStageTarget } from './application/card-link';
 export { updateProjectInfo } from './application/update-project-info';
 export type { UpdateProjectInfoInput } from './application/update-project-info';
 export type {
   Assignee,
   CardSourcePort,
+  PicCardSummary,
   ProjectDeps,
   NewAssignmentRow,
   PicRef,
@@ -46,6 +49,10 @@ export type { ProjectInfoInput, ProjectType } from './domain/project-rules';
 export type { GanttBar } from './domain/gantt-bar';
 export type { CompletionVerdict, DisplayStatus } from './domain/stage-lateness';
 export type { Estimate, ProjectStatus, StageKind, StageStatus } from './domain/stage-types';
+export { planAutoRevision } from './domain/revision';
+export type { AutoRevisionPlan, RevisionWarning } from './domain/revision';
 export { createPrismaProjectRepository } from './infrastructure/prisma-project-repository';
 export { createPrismaProjectQueries } from './infrastructure/prisma-project-queries';
-export { createPrismaCardSource, createPrismaReference } from './infrastructure/prisma-reference-and-cards';
+export { createPrismaReference } from './infrastructure/prisma-reference-and-cards';
+export { cardWeight } from './domain/stage-progress';
+export type { ProgressCard } from './domain/stage-progress';

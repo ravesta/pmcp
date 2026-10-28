@@ -22,6 +22,44 @@ export const MESSAGES = {
   PASSWORD_CONFIRM_MISMATCH: 'Konfirmasi harus sama dengan password baru.',
   PASSWORD_CURRENT_WRONG: 'Password saat ini salah.',
   PASSWORD_CHANGED: 'Password berhasil diganti.',
+  CARD_NOT_FOUND: 'Kartu tidak ditemukan.',
+  CARD_NOT_OWNER: 'Hanya PIC pemilik yang dapat mengubah kartu ini.',
+  CARD_PIC_ONLY: 'Hanya PIC yang dapat membuat dan mengelola kartu.',
+  CARD_TITLE_RANGE: 'Judul rencana 3 sampai 120 karakter.',
+  CARD_PLAN_REQUIRED: 'Isi rencana mulai dan selesai (dd/mm/yyyy).',
+  CARD_PLAN_ORDER: 'Rencana selesai tidak boleh sebelum rencana mulai.',
+  CARD_ESTIMATE_RANGE: 'Estimasi jam harus lebih dari 0 sampai 80 jam.',
+  CARD_PROJECT_REQUIRED: 'Pilih project.',
+  CARD_PROJECT_NOT_ASSIGNED: 'Anda bukan PIC pada tahapan project ini.',
+  CARD_PROJECT_CLOSED: 'Project berstatus Batal atau Selesai tidak dapat dibuatkan kartu baru.',
+  CARD_STAGE_DONE: 'Tahapan ini sudah selesai.',
+  CARD_CATEGORY_REQUIRED: 'Pilih kategori activity.',
+  CARD_CATEGORY_INACTIVE: 'Kategori activity tidak aktif.',
+  CARD_STEP_INACTIVE: 'Step tidak aktif atau bukan milik tahapan ini.',
+  CARD_COLUMN_INVALID: 'Kolom awal harus Planned atau In Progress.',
+  CARD_STATUS_CONFIRM_REQUIRED: 'Jawab dahulu apakah status project diubah menjadi Berjalan.',
+  CARD_CANCELLED: 'Kartu ini sudah dibatalkan.',
+  CARD_SAME_COLUMN: 'Kartu sudah berada di kolom itu.',
+  CARD_PROGRESS_INVALID: 'Pilih progres 0, 25, 50, atau 75%.',
+  CARD_PROGRESS_NOT_IN_PROGRESS: 'Progres hanya dapat diisi saat kartu In Progress.',
+  CARD_RESCHEDULE_DONE: 'Kartu yang sudah Done tidak dapat dijadwal ulang.',
+  CARD_RESCHEDULE_SAME: 'Rencana baru sama dengan rencana yang berlaku.',
+  CARD_RESCHEDULE_REASON_REQUIRED: 'Pilih alasan jadwal ulang.',
+  CARD_RESCHEDULE_REASON_INACTIVE: 'Alasan jadwal ulang tidak aktif.',
+  CARD_CANCEL_DONE: 'Kartu yang sudah Done tidak dapat dibatalkan.',
+  CARD_CANCEL_REASON_REQUIRED: 'Isi alasan pembatalan.',
+  LOG_DATE_REQUIRED: 'Isi tanggal log (dd/mm/yyyy).',
+  LOG_DATE_FUTURE: 'Tanggal log tidak boleh di masa depan.',
+  LOG_TIME_INVALID: 'Isi jam mulai dan jam selesai (HH:MM).',
+  LOG_TIME_ORDER: 'Jam selesai harus setelah jam mulai.',
+  LOG_DESCRIPTION_REQUIRED: 'Isi uraian pekerjaan.',
+  LOG_STEP_REQUIRED: 'Pilih step.',
+  LOG_STEP_UNKNOWN: 'Step tidak aktif atau bukan milik tahapan kartu ini.',
+  LOG_NO_ACTIVE_STEP: 'Tahapan ini belum memiliki step aktif. Minta Manager menambah step di Master.',
+  LOG_OVERLAP: 'Waktu log bentrok dengan log lain Anda pada tanggal yang sama.',
+  LOG_NOT_FOUND: 'Log tidak ditemukan.',
+  LOG_ON_CANCELLED: 'Kartu yang dibatalkan tidak dapat menerima log baru.',
+  REVISION_AUTO_REQUIRED: 'Rencana ini melewati estimasi tahapan. Pilih kategori dan isi catatan untuk merevisi estimasi.',
   PIC_NAME_REQUIRED: 'Nama wajib diisi.',
   PIC_STAGE_REQUIRED: 'Pilih tahapan.',
   PIC_DEV_NO_LOGIN: 'PIC Development dicatat sebagai nama saja dan tidak dapat memiliki akun login.',
@@ -135,4 +173,26 @@ export function statusReasonRequiredMessage(statusLabel: string): string {
  */
 export function stagesNotDoneMessage(stageLabels: ReadonlyArray<string>): string {
   return `Status Selesai hanya dapat dipilih bila semua tahapan Selesai. Belum selesai: ${stageLabels.join(', ')}.`;
+}
+
+/**
+ * Pesan peringatan log yang membuat total waktu satu hari melebihi 8 jam.
+ * Masukan: total menit pada hari itu. Keluaran: pesan Indonesia.
+ * Efek samping: tidak ada (fungsi murni).
+ * Rujukan: FR-18-01 butir 2, CL-005.
+ */
+export function dayOverloadMessage(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `Log tersimpan. Total waktu Anda pada hari itu ${hours} jam${minutes > 0 ? ` ${minutes} menit` : ''}, melebihi 8 jam.`;
+}
+
+/**
+ * Pesan peringatan jumlah jadwal ulang mencapai batas.
+ * Masukan: jumlah jadwal ulang termasuk yang baru dan batas peringatan. Keluaran: pesan Indonesia.
+ * Efek samping: tidak ada (fungsi murni).
+ * Rujukan: FR-21-03 butir 4.
+ */
+export function rescheduleLimitMessage(count: number, threshold: number): string {
+  return `Kartu ini sudah dijadwal ulang ${count}×. Jadwal ulang ini menjadi yang ke-${count} (batas peringatan ${threshold}×).`;
 }

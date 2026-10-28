@@ -19,7 +19,13 @@ import {
 } from '@/modules/audit';
 import { createPrismaMasterRepository, createPrismaPicRepository, type MasterDeps } from '@/modules/master';
 import {
+  createPrismaCardRepository,
   createPrismaCardSource,
+  createPrismaKanbanQueries,
+  createPrismaKanbanReference,
+  type KanbanDeps,
+} from '@/modules/kanban';
+import {
   createPrismaProjectQueries,
   createPrismaProjectRepository,
   createPrismaReference,
@@ -40,6 +46,7 @@ export interface Container {
   readonly auth: AuthDeps;
   readonly master: MasterDeps;
   readonly project: ProjectDeps;
+  readonly kanban: KanbanDeps;
 }
 
 /**
@@ -83,12 +90,22 @@ export function buildContainer(prisma: PrismaClient, clock: Clock, config: AppCo
     projects: createPrismaProjectRepository(prisma),
     queries: createPrismaProjectQueries(prisma),
     reference: createPrismaReference(prisma),
-    // sementara membaca tabel kartu langsung; modul kanban (irisan 3) menggantikan adapter ini
+    // project hanya mengenal port; adapter dimiliki modul kanban (Technical Design §5.2)
     cards: createPrismaCardSource(prisma),
     writeAudit,
   };
 
-  return { config, clock, prisma, auditRepository, auth, master, project };
+  const kanban: KanbanDeps = {
+    clock,
+    transactor,
+    cards: createPrismaCardRepository(prisma),
+    queries: createPrismaKanbanQueries(prisma),
+    reference: createPrismaKanbanReference(prisma),
+    project,
+    writeAudit,
+  };
+
+  return { config, clock, prisma, auditRepository, auth, master, project, kanban };
 }
 
 /** Kunci global agar satu container dipakai ulang saat hot reload pengembangan (hindari habis koneksi). */

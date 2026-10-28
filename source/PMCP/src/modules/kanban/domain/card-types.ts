@@ -23,3 +23,10 @@ export interface CardState {
   readonly doneOn: IsoDate | null;
   readonly cancelled: boolean;
 }
+
+/** Nama kolom papan untuk tampilan dan jejak audit. */
+export const COLUMN_LABEL: Readonly<Record<CardColumn, string>> = {
+  PLANNED: 'Planned',
+  IN_PROGRESS: 'In Progress',
+  DONE: 'Done',
+};
