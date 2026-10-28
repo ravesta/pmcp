@@ -25,6 +25,7 @@ import {
   createPrismaKanbanReference,
   type KanbanDeps,
 } from '@/modules/kanban';
+import { createPrismaDashboardReads, type DashboardDeps } from '@/modules/dashboard';
 import {
   createPrismaProjectQueries,
   createPrismaProjectRepository,
@@ -47,6 +48,7 @@ export interface Container {
   readonly master: MasterDeps;
   readonly project: ProjectDeps;
   readonly kanban: KanbanDeps;
+  readonly dashboard: DashboardDeps;
 }
 
 /**
@@ -105,7 +107,9 @@ export function buildContainer(prisma: PrismaClient, clock: Clock, config: AppCo
     writeAudit,
   };
 
-  return { config, clock, prisma, auditRepository, auth, master, project, kanban };
+  const dashboard: DashboardDeps = { clock, project, kanban, reads: createPrismaDashboardReads(prisma) };
+
+  return { config, clock, prisma, auditRepository, auth, master, project, kanban, dashboard };
 }
 
 /** Kunci global agar satu container dipakai ulang saat hot reload pengembangan (hindari habis koneksi). */

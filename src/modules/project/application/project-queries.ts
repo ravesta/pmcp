@@ -222,3 +222,19 @@ export async function getProjectDetail(deps: ProjectDeps, actor: Actor, code: st
 export async function listNewAssignments(deps: ProjectDeps, actor: Actor): Promise<NewAssignmentRow[]> {
   return actor.picId === null ? [] : deps.queries.listNewAssignments(actor.picId);
 }
+
+/**
+ * Membaca seluruh project aktif (Backlog, Berjalan, Ditunda; bukan Batal dan Selesai) lengkap dengan tahapan, progres,
+ * dan penanda, sebagai dasar hitung Dashboard. Kartu dimuat sekali untuk semua tahapan (tanpa N+1).
+ * Masukan: dependensi dan pelaku. Keluaran: daftar `ProjectView` terurut menurut id.
+ * Efek samping: tidak ada (hanya baca).
+ * Rujukan: FR-04-01 (dasar hitung: project selain Batal dan Selesai), FR-07-01, NFR-14 (angka sama dengan layar tujuan).
+ */
+export async function listActiveProjectViews(deps: ProjectDeps, actor: Actor): Promise<ProjectView[]> {
+  const ctx = await viewContext(deps, toStageActor(actor));
+  const ids = await deps.queries.listProjectIdsByStatus(['BACKLOG', 'RUNNING', 'DEFERRED']);
+  const snapshots = await deps.queries.loadSnapshots(ids);
+  const stageRefs: StageRef[] = snapshots.flatMap((p) => p.stages.map((s) => ({ stageId: s.id, projectId: p.id, kind: s.kind })));
+  const facts = await deps.cards.cardFacts(stageRefs);
+  return snapshots.map((snapshot) => buildProjectView(snapshot, facts, ctx));
+}
