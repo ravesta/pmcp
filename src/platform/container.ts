@@ -18,6 +18,12 @@ import {
   type AuditRepository,
 } from '@/modules/audit';
 import { createPrismaMasterRepository, createPrismaPicRepository, type MasterDeps } from '@/modules/master';
+import {
+  createPrismaCardSource,
+  createPrismaProjectRepository,
+  createPrismaReference,
+  type ProjectDeps,
+} from '@/modules/project';
 import type { AuditWriter } from '@/shared/audit';
 import type { Clock } from '@/shared/clock';
 import { createClockFor } from './clock-provider';
@@ -32,6 +38,7 @@ export interface Container {
   readonly auditRepository: AuditRepository;
   readonly auth: AuthDeps;
   readonly master: MasterDeps;
+  readonly project: ProjectDeps;
 }
 
 /**
@@ -69,7 +76,17 @@ export function buildContainer(prisma: PrismaClient, clock: Clock, config: AppCo
     writeAudit,
   };
 
-  return { config, clock, prisma, auditRepository, auth, master };
+  const project: ProjectDeps = {
+    clock,
+    transactor,
+    projects: createPrismaProjectRepository(prisma),
+    reference: createPrismaReference(prisma),
+    // sementara membaca tabel kartu langsung; modul kanban (irisan 3) menggantikan adapter ini
+    cards: createPrismaCardSource(prisma),
+    writeAudit,
+  };
+
+  return { config, clock, prisma, auditRepository, auth, master, project };
 }
 
 /** Kunci global agar satu container dipakai ulang saat hot reload pengembangan (hindari habis koneksi). */

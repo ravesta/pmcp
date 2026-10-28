@@ -25,11 +25,13 @@ export interface Actor {
   readonly mustChangePassword: boolean;
 }
 
-/** Aksi yang dikendalikan kebijakan pada irisan 1; ditambah pada irisan berikutnya. */
+/** Aksi yang dikendalikan kebijakan; hak per tahapan project berada di `project/domain/stage-rules`. */
 export type Action =
   | 'master.manage'
   | 'account.manage'
   | 'audit.view'
+  | 'project.create'
+  | 'project.view'
   | 'password.changeOwn';
 
 /**
@@ -43,7 +45,10 @@ export function can(actor: Actor, action: Action): boolean {
     case 'master.manage':
     case 'account.manage':
     case 'audit.view':
+    case 'project.create':
       return actor.role === 'MANAGER';
+    case 'project.view':
+      return true;
     case 'password.changeOwn':
       return true;
     default:

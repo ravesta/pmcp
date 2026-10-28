@@ -247,8 +247,19 @@ describe('project dan tahapan (FR-02, FR-05, FR-13)', () => {
       db.query(`INSERT INTO project_stage (project_id, stage, status, hold_since) VALUES (${project.id}, 'BA', 'HELD', '2026-10-26')`),
       /project_stage_hold/,
     );
+    // migrasi 6: hold berjalan wajib mencatat pelaku yang memulai hold
+    await expectRejected(
+      db.query(
+        `INSERT INTO project_stage (project_id, stage, status, hold_since, hold_reason) VALUES (${project.id}, 'BA', 'HELD', '2026-10-26', 'Menunggu bisnis')`,
+      ),
+      /project_stage_hold_by/,
+    );
+    await expectRejected(
+      db.query(`INSERT INTO project_stage (project_id, stage, hold_by) VALUES (${project.id}, 'BA', ${managerId})`),
+      /project_stage_hold_by/,
+    );
     await db.query(
-      `INSERT INTO project_stage (project_id, stage, status, hold_since, hold_reason) VALUES (${project.id}, 'BA', 'HELD', '2026-10-26', 'Menunggu bisnis')`,
+      `INSERT INTO project_stage (project_id, stage, status, hold_since, hold_reason, hold_by) VALUES (${project.id}, 'BA', 'HELD', '2026-10-26', 'Menunggu bisnis', ${managerId})`,
     );
   });
 
