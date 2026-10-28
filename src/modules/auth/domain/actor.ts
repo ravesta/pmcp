@@ -32,6 +32,8 @@ export type Action =
   | 'audit.view'
   | 'project.create'
   | 'project.view'
+  | 'card.view'
+  | 'card.manage'
   | 'password.changeOwn';
 
 /**
@@ -48,7 +50,10 @@ export function can(actor: Actor, action: Action): boolean {
     case 'project.create':
       return actor.role === 'MANAGER';
     case 'project.view':
+    case 'card.view':
       return true;
+    case 'card.manage':
+      return actor.role === 'PIC' && actor.picId !== null;
     case 'password.changeOwn':
       return true;
     default:

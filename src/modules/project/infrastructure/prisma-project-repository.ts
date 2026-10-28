@@ -5,6 +5,7 @@
  * agar penyimpanan berdasarkan data lama ditolak (NFR-10).
  */
 import type { PrismaClient } from '@/generated/prisma/client';
+import { fromDbDate, toDbDate } from '@/shared/db-date';
 import { toIsoDate, type IsoDate } from '@/shared/iso-date';
 import type { TxContext } from '@/shared/transaction';
 import type {
@@ -25,26 +26,6 @@ const STAGE_ORDER: ReadonlyArray<StageKind> = ['BA', 'DEV', 'QA'];
 
 /** Pembuat tanggal bisnis dari objek `Date` kolom `DATE` (selalu tengah malam UTC). */
 const BUSINESS_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' });
-
-/**
- * Mengubah tanggal bisnis menjadi `Date` UTC tengah malam untuk kolom `DATE`; null tetap null.
- * Masukan: `IsoDate` atau null. Keluaran: `Date` atau null.
- * Efek samping: tidak ada (fungsi murni).
- * Rujukan: BL-09, TD-04.
- */
-function toDbDate(date: IsoDate | null): Date | null {
-  return date === null ? null : new Date(`${date}T00:00:00.000Z`);
-}
-
-/**
- * Mengubah nilai kolom `DATE` menjadi tanggal bisnis; null tetap null.
- * Masukan: `Date` atau null. Keluaran: `IsoDate` atau null.
- * Efek samping: tidak ada (fungsi murni).
- * Rujukan: BL-09, TD-04.
- */
-function fromDbDate(date: Date | null): IsoDate | null {
-  return date === null ? null : toIsoDate(date.toISOString().slice(0, 10));
-}
 
 /**
  * Menyusun estimasi dari dua kolom tanggal (keduanya terisi atau keduanya null, dijaga constraint database).
@@ -402,6 +383,21 @@ export function createPrismaProjectRepository(prisma: PrismaClient): ProjectRepo
         });
       }
       return seq;
+    },
+
+    /** Menggabungkan perpanjangan ke revisi yang ada. Efek samping: UPDATE `stage_revision`, INSERT sumber kartu. */
+    async mergeRevision(tx, revisionId, update) {
+      const db = inTx(tx);
+      await db.stage_revision.update({
+        where: { id: BigInt(revisionId) },
+        data: { new_start: toDbDate(update.next.start) as Date, new_end: toDbDate(update.next.end) as Date, category_name: update.categoryName, note: update.note, updated_at: update.now },
+      });
+      if (update.sourceCardIds.length > 0) {
+        await db.stage_revision_source.createMany({
+          data: update.sourceCardIds.map((cardId) => ({ revision_id: BigInt(revisionId), card_id: BigInt(cardId) })),
+          skipDuplicates: true,
+        });
+      }
     },
 
     /** Membaca seluruh revisi tahapan. Efek samping: tidak ada (hanya baca). */

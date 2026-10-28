@@ -173,6 +173,15 @@ export interface ProjectRepository {
   lastRevision(tx: TxContext, stageId: number): Promise<RevisionRow | null>;
   /** Menambah revisi bernomor berikutnya beserta kartu asal. Mengembalikan nomor revisi. */
   appendRevision(tx: TxContext, stageId: number, revision: RevisionInsert): Promise<number>;
+  /**
+   * Menggabungkan perpanjangan otomatis baru ke revisi yang ada: estimasi baru, kategori, catatan gabungan, dan
+   * kartu asal bertambah; nomor revisi tidak bertambah (FR-13-05 butir 3).
+   */
+  mergeRevision(
+    tx: TxContext,
+    revisionId: number,
+    update: { readonly next: Estimate; readonly categoryName: string; readonly note: string; readonly sourceCardIds: ReadonlyArray<number>; readonly now: Date },
+  ): Promise<void>;
   /** Membaca seluruh revisi tahapan, terlama di atas. */
   listRevisions(stageId: number): Promise<RevisionRow[]>;
 }
