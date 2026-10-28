@@ -27,6 +27,7 @@ export type {
   CardSourcePort,
   ProjectDeps,
   NewAssignmentRow,
+  PicRef,
   ProjectFilter,
   ProjectQueryRepository,
   ProjectRepository,
@@ -39,9 +40,9 @@ export type {
   StageSnapshot,
 } from './application/ports';
 export { PROJECT_STATUS_LABEL, STAGE_LABEL, STAGE_STATUS_LABEL } from './application/support';
-export type { ProjectType } from './domain/project-rules';
+export type { ProjectInfoInput, ProjectType } from './domain/project-rules';
 export type { GanttBar } from './domain/gantt-bar';
-export type { DisplayStatus } from './domain/stage-lateness';
+export type { CompletionVerdict, DisplayStatus } from './domain/stage-lateness';
 export type { Estimate, ProjectStatus, StageKind, StageStatus } from './domain/stage-types';
 export { createPrismaProjectRepository } from './infrastructure/prisma-project-repository';
 export { createPrismaProjectQueries } from './infrastructure/prisma-project-queries';

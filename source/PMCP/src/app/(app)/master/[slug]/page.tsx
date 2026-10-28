@@ -14,6 +14,7 @@ import { requirePageSession } from '../../../_lib/session';
 import { MasterListCard } from '../master-list-card';
 import { PicTable } from '../pic-table';
 import { ThresholdForm } from '../threshold-form';
+import { LinkChip } from '@/ui/components/link-controls';
 
 /** Konfigurasi tampilan tiap sub menu master pilihan. */
 const LIST_PAGES: Readonly<Record<string, { kind: MasterKind; subtitle: string; usageUnit: string; addLabel: string; threshold?: 'revision' | 'reschedule' }>> = {
@@ -54,8 +55,8 @@ export default async function MasterSlugPage({ params, searchParams }: { params:
     return (
       <>
         <Stack direction="row" spacing={1} role="group" aria-label="Tahapan">
-          <Chip component={Link} href="/master/step?tahapan=BA" clickable label="Business Analyst" color={stage === 'BA' ? 'primary' : 'default'} />
-          <Chip component={Link} href="/master/step?tahapan=QA" clickable label="Quality Assurance" color={stage === 'QA' ? 'primary' : 'default'} />
+          <LinkChip href="/master/step?tahapan=BA" label="Business Analyst" color={stage === 'BA' ? 'primary' : 'default'} />
+          <LinkChip href="/master/step?tahapan=QA" label="Quality Assurance" color={stage === 'QA' ? 'primary' : 'default'} />
         </Stack>
         <MasterListCard kind="stage_step" stage={stage} orderable title="Master Step Tahapan" addLabel={`Nama step baru (${stage})`} usageUnit="log" maxLength={MASTER_RULES.stage_step.maxLength}
           subtitle="Step pengerjaan yang dipilih PIC saat membuat log activity di Kanban. Tahapan Development belum memiliki step karena PIC Development tidak login. Step tidak dihapus, hanya dinonaktifkan."

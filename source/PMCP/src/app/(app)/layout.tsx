@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
  */
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const { actor } = await requirePageSession();
-  const items: NavItem[] = [{ label: 'Dashboard', href: '/dashboard' }];
+  const items: NavItem[] = [{ label: 'Dashboard', href: '/dashboard' }, { label: 'Project', href: '/project' }];
   if (can(actor, 'master.manage')) items.push({ label: 'Master', href: '/master' });
   const roleLabel = actor.role === 'MANAGER' ? 'Head of BA dan Head QA' : `PIC ${actor.picStage === 'QA' ? 'Quality Assurance' : 'Business Analyst'}`;
   return (
