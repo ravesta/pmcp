@@ -165,7 +165,7 @@ auth      master      project      kanban      audit      dashboard (baca)   his
 
 ## 6. Components / Modules
 
-Struktur repository (`source/PMCP/`, repository git tersendiri, CD-46):
+Struktur repository (`source/PMCP/`, repository git tersendiri, CD-46; kini dipindah menjadi repository `ravesta/pmcp_app` dengan isi `source/PMCP/` sebagai akar, 2026-10-28):
 
 ```text
 source/PMCP/

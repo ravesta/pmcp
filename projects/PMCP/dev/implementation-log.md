@@ -1,6 +1,6 @@
 # Implementation Log: PMCP
 
-Catatan perkembangan implementasi di `source/PMCP/` (repository git tersendiri, CD-46) dan penyimpangan
+Catatan perkembangan implementasi di repository kode `ravesta/pmcp_app` (git tersendiri, CD-46) dan penyimpangan
 atau penyempurnaan terhadap Technical Design. Bukan sumber kebenaran requirement; hanya riwayat DEV.
 
 ## Irisan 0: Fondasi (2026-10-28)
@@ -19,7 +19,7 @@ Total: **87 uji** (59 unit termasuk uji arsitektur dan konvensi kode, 28 integra
 
 ### Isi irisan 0
 
-- Scaffold `source/PMCP/` (Next.js 16, React 19, TypeScript 5.9 strict, Vitest 5, Zod 4, PGlite untuk uji skema).
+- Scaffold repository kode `pmcp_app` (Next.js 16, React 19, TypeScript 5.9 strict, Vitest 5, Zod 4, PGlite untuk uji skema).
 - `src/shared`: `iso-date`, `calendar` (hari kerja, minggu, bulan), `rounding`, `clock` (jam sistem Asia/Jakarta dan jam tetap), `result` (hasil dan galat).
 - `src/platform`: `config` (validasi lingkungan), `clock-provider`.
 - `src/app`: layout, halaman awal sementara, `/api/health`.
@@ -62,6 +62,13 @@ generik, audit tanpa password.
 | Sumber alamat tak diketahui berbagi satu penghitung IP, 20 salah login mengunci semua pengguna | Diperbaiki: tanpa alamat, hanya throttle per username |
 | CSP memakai `'unsafe-inline'` untuk skrip dan gaya (Next.js dan Emotion), belum bernonce | Terbuka (risiko rendah): versi bernonce lewat `proxy.ts` dan cache Emotion bernonce, dijadwalkan sebelum rilis |
 | Penghitung throttle dibaca lalu ditulis tanpa kunci, percobaan paralel dapat melewati batas sedikit | Terbuka (risiko rendah): ganti dengan upsert atomik `failures = failures + 1` sebelum rilis |
+
+## Pemindahan repository kode (2026-10-28)
+
+Kode dipisahkan dari repository dokumen ke `ravesta/pmcp_app` dengan riwayat commit utuh (`git subtree split` dari
+`source/PMCP/`); akar repository baru sama dengan isi `source/PMCP/`. Folder `source/` dihapus dari repository dokumen.
+Dokumen persetujuan (BRD, handover, arsip) tidak diubah dan masih menyebut `source/PMCP/` sebagai jalur lama.
+Pekerjaan irisan 4 (Dashboard dan Riwayat) berjalan di cabang `irisan-4-wip` repository kode.
 
 ## Irisan 3: Kanban (2026-10-28)
 

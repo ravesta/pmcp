@@ -43,7 +43,7 @@ Dari BRD (rujukan, bukan salinan):
 - Database PostgreSQL di server lokal (CL-049).
 - Server, jaringan, dan backup dikelola tim infra perusahaan; CI/CD akan disediakan (CL-049). Detailnya belum diketahui DEV (§9).
 - Autentikasi username dan password; akun dibuat dan di-reset Manager (CL-005, CL-009).
-- Source code berada di `source/PMCP/`, bukan di dalam `projects/` (CLAUDE.md).
+- Source code berada di repository kode `ravesta/pmcp_app`, bukan di dalam `projects/` (CLAUDE.md).
 - Human-readable code dan secure coding wajib (developer-governance §9 dan Secure Coding).
 - Skala: kurang dari 20 pengguna. Tidak ada kebutuhan skala horizontal yang dapat dibenarkan.
 - Akses hanya dari jaringan kantor (CL-050); tidak ada akses publik atau VPN pada rilis ini. Aplikasi tidak dipublikasikan ke internet.

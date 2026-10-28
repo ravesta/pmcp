@@ -35,7 +35,7 @@ dijadikan pola setelah dinyatakan eksplisit oleh pemilik.
 
 TBD, Technology Baseline ditetapkan setelah evaluasi (lihat
 `.claude/rules/developer-governance.md` §2). Source code, bila ada, berada di
-`source/PMCP/`, bukan di dalam `projects/`.
+repository kode `ravesta/pmcp_app`, bukan di dalam `projects/`.
 
 ## Riwayat Perubahan
 

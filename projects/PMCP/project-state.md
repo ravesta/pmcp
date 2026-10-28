@@ -5,7 +5,7 @@ hanya pointer, lihat `.claude/skills/context-management/SKILL.md` §Jangan Dupli
 
 ## Source Code
 
-`source/PMCP/` (repository git tersendiri, belum di-commit). Irisan 0 (fondasi) selesai (CD-177); irisan 1 sampai 5 belum. Catatan: `dev/implementation-log.md`.
+repository kode `ravesta/pmcp_app` (git tersendiri). Irisan 0 (fondasi) selesai (CD-177); irisan 1 sampai 5 belum. Catatan: `dev/implementation-log.md`.
 
 ## Deployment
 
@@ -17,7 +17,7 @@ BRD v3.5 dan Technology Baseline v1.0 disetujui pemilik 2026-10-28 (CD-158, CD-1
 
 ## Current Gate
 
-G1 Requirement Baseline terpenuhi (2026-10-28, CD-158, diperbarui BRD v4.0 CD-169). **G2 Functional Baseline terpenuhi (2026-10-28, CD-172).** Berikutnya: implementasi irisan 0 sampai 5 di `source/PMCP/` (Technical Design Lampiran A), handoff UX/UI paralel, perencanaan uji (QA).
+G1 Requirement Baseline terpenuhi (2026-10-28, CD-158, diperbarui BRD v4.0 CD-169). **G2 Functional Baseline terpenuhi (2026-10-28, CD-172).** Berikutnya: implementasi irisan 0 sampai 5 di repository kode `ravesta/pmcp_app` (Technical Design Lampiran A), handoff UX/UI paralel, perencanaan uji (QA).
 
 ## Current Owner
 
@@ -59,4 +59,4 @@ Belum ada.
 
 ## Blockers
 
-CL-001, CL-002, CL-003, CL-004, CL-005, CL-006, CL-009, CL-010 dijawab. CL-007 dan CL-008 ON HOLD. CL-005a dan pertanyaan lanjutan (cuti, master, akun) sudah dijawab. Tidak ada klarifikasi blocking. Langkah berikutnya (CD-154): (1) ~~BRD~~ dan (2) ~~Technology Baseline~~ sudah disetujui; (3) BA menyusun FSD untuk persetujuan pemilik (G2); (4) kode di `source/PMCP/`. Jawaban tim infra ditunda; ditagih sebelum deploy pertama.
+CL-001, CL-002, CL-003, CL-004, CL-005, CL-006, CL-009, CL-010 dijawab. CL-007 dan CL-008 ON HOLD. CL-005a dan pertanyaan lanjutan (cuti, master, akun) sudah dijawab. Tidak ada klarifikasi blocking. Langkah berikutnya (CD-154): (1) ~~BRD~~ dan (2) ~~Technology Baseline~~ sudah disetujui; (3) BA menyusun FSD untuk persetujuan pemilik (G2); (4) kode di repository kode `ravesta/pmcp_app`. Jawaban tim infra ditunda; ditagih sebelum deploy pertama.
