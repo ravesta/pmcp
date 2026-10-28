@@ -90,6 +90,18 @@ tahapan SEBELUM menyisipkan kartu (urutan TD §7.3), diuji dengan dua permintaan
 
 Belum: kartu "Estimasi diperpanjang lewat rencana" dan pengarahan dari Dashboard (irisan 4).
 
+## Irisan 4: Dashboard dan Riwayat (2026-10-28)
+
+Modul baca `dashboard` (domain kapasitas, kualitas pencatatan, benturan jadwal; use case Head, PIC, Riwayat) dan layar
+Dashboard Head, Dashboard PIC, serta menu Riwayat (Tahapan selesai dan Aktivitas harian) selesai di repository
+`pmcp_app`, cabang `irisan-4-wip`. Angka kartu Head memakai tampilan project yang sama dengan Daftar dan Gantt dan
+diuji sama dengan jumlah pada layar tujuan (NFR-14). Uji: 393 uji hijau; alur browser Manager dan PIC tanpa galat konsol.
+
+| Hal | Tertulis | Implementasi | Alasan |
+|---|---|---|---|
+| Timeline proyek saya | Bar yang sama dengan Gantt | Garis waktu ringkas (batang proporsional dan penanda hari ini) | Cukup untuk membaca jadwal dan benturan; bar penuh ada di tab Project |
+| Rincian jam kapasitas tabel Head | Rincian per hari atau minggu | Hanya ringkasan per PIC pada tabel Head; rincian pada Dashboard PIC | Sesuai FR-04-04 (tabel) dan FR-07-05 (rincian pribadi) |
+
 ### Penyempurnaan terhadap Technical Design (tidak mengubah keputusan)
 
 | Hal | Tertulis di Technical Design | Implementasi | Alasan |
