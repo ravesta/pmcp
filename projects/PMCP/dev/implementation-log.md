@@ -63,6 +63,26 @@ generik, audit tanpa password.
 | CSP memakai `'unsafe-inline'` untuk skrip dan gaya (Next.js dan Emotion), belum bernonce | Terbuka (risiko rendah): versi bernonce lewat `proxy.ts` dan cache Emotion bernonce, dijadwalkan sebelum rilis |
 | Penghitung throttle dibaca lalu ditulis tanpa kunci, percobaan paralel dapat melewati batas sedikit | Terbuka (risiko rendah): ganti dengan upsert atomik `failures = failures + 1` sebelum rilis |
 
+## Irisan 3: Kanban (2026-10-28)
+
+Modul `kanban` (domain, application, infrastructure, `client.ts`) dan layar Kanban selesai: papan tiga kolom dengan
+seret-lepas dan tombol panah, filter di URL, kepatuhan rencana, dialog Buat kartu (project dan activity) dengan pratinjau
+revisi otomatis dan konfirmasi status project, dialog rincian kartu (progres, jadwal ulang, pembatalan, log), serta
+bagian Rencana kerja dan Log activity pada Detail Project. Revisi estimasi otomatis (FR-13-05) berjalan satu transaksi
+dengan kartu lewat `applyCardRevision` milik project; perpanjangan sehari oleh PIC yang sama digabung.
+
+Temuan selama uji: INSERT kartu mengambil kunci bersama pada baris project (foreign key); dua pembuatan kartu serentak
+pada tahapan yang sama saling menunggu kunci eksklusif dan terjadi deadlock. Diperbaiki dengan mengunci project dan
+tahapan SEBELUM menyisipkan kartu (urutan TD §7.3), diuji dengan dua permintaan serentak.
+
+| Hal | Tertulis | Implementasi | Alasan |
+|---|---|---|---|
+| Adapter sumber kartu bagi project | Adapter kanban (TD §5.2) | `createPrismaCardSource` dipindah ke `modules/kanban/infrastructure` | Menutup penyimpangan sementara irisan 2 |
+| Tombol "+ Dadakan" pada papan | Satu tombol terpisah (mockup) | Tombol "+ Kartu activity" dan kotak centang "Pekerjaan dadakan" di dialog | Dadakan dapat berlaku untuk kartu project maupun activity (FR-21-01 butir 3) |
+| Log pada kartu dibatalkan | Tidak diatur eksplisit untuk penghapusan | Penghapusan log pada kartu dibatalkan ditolak | Menjaga jam tercatat tetap utuh (FR-18-01 butir 8) |
+
+Belum: kartu "Estimasi diperpanjang lewat rencana" dan pengarahan dari Dashboard (irisan 4).
+
 ### Penyempurnaan terhadap Technical Design (tidak mengubah keputusan)
 
 | Hal | Tertulis di Technical Design | Implementasi | Alasan |

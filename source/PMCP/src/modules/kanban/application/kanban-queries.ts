@@ -103,6 +103,8 @@ export interface CardDetail {
   /** Step aktif tahapan kartu (kartu project) sebagai pilihan log. */
   readonly steps: ReadonlyArray<MasterChoice>;
   readonly rescheduleReasons: ReadonlyArray<MasterChoice>;
+  /** Kategori alasan revisi estimasi tahapan (bila jadwal ulang melewati estimasi tahapan). */
+  readonly revisionCategories: ReadonlyArray<MasterChoice>;
   readonly rescheduleThreshold: number;
 }
 
@@ -116,12 +118,13 @@ export async function getCardDetail(deps: KanbanDeps, actor: Actor, cardId: numb
   const row = await deps.queries.getBoardCard(cardId);
   if (!row) return fail({ code: 'NOT_FOUND', message: MESSAGES.CARD_NOT_FOUND });
   const ctx = await viewContext(deps, actor);
-  const [logs, reschedules, progressEvents, reasons, steps] = await Promise.all([
+  const [logs, reschedules, progressEvents, reasons, steps, revisionCategories] = await Promise.all([
     deps.queries.listCardLogs(cardId),
     deps.queries.listReschedules(cardId),
     deps.queries.listProgressEvents(cardId),
     deps.reference.listRescheduleReasons(),
     row.card.stage ? deps.reference.listActiveSteps(row.card.stage) : Promise.resolve([]),
+    deps.project.reference.listActiveRevisionCategories(),
   ]);
   return ok({
     card: toCardView(row, ctx),
@@ -131,6 +134,7 @@ export async function getCardDetail(deps: KanbanDeps, actor: Actor, cardId: numb
     progressEvents,
     steps,
     rescheduleReasons: reasons,
+    revisionCategories: revisionCategories.map((c) => ({ id: c.id, name: c.name })),
     rescheduleThreshold: ctx.rescheduleThreshold,
   });
 }
@@ -141,6 +145,8 @@ export interface CardFormOptions {
   readonly categories: ReadonlyArray<MasterChoice>;
   readonly steps: ReadonlyArray<MasterChoice>;
   readonly stage: StageKind | null;
+  /** Kategori alasan revisi estimasi tahapan (bila rencana kartu melewati estimasi tahapan). */
+  readonly revisionCategories: ReadonlyArray<MasterChoice>;
 }
 
 /**
@@ -152,14 +158,15 @@ export interface CardFormOptions {
  */
 export async function getCardFormOptions(deps: KanbanDeps, actor: Actor): Promise<CardFormOptions> {
   if (actor.role !== 'PIC' || actor.picId === null || actor.picStage === null || actor.picStage === 'DEV') {
-    return { projects: [], categories: [], steps: [], stage: null };
+    return { projects: [], categories: [], steps: [], stage: null, revisionCategories: [] };
   }
-  const [projects, categories, steps] = await Promise.all([
+  const [projects, categories, steps, revisionCategories] = await Promise.all([
     deps.queries.listFollowedProjects(actor.picId, actor.picStage),
     deps.reference.listActivityCategories(),
     deps.reference.listActiveSteps(actor.picStage),
+    deps.project.reference.listActiveRevisionCategories(),
   ]);
-  return { projects, categories, steps, stage: actor.picStage };
+  return { projects, categories, steps, stage: actor.picStage, revisionCategories: revisionCategories.map((c) => ({ id: c.id, name: c.name })) };
 }
 
 /** Pratinjau rencana kartu project terhadap estimasi tahapan dan status project. */
