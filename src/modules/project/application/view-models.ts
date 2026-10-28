@@ -80,6 +80,8 @@ export interface StageView {
   readonly actualEnd: IsoDate | null;
   readonly holdSince: IsoDate | null;
   readonly holdReason: string | null;
+  /** Riwayat penahanan: periode yang sudah berakhir (terlama di atas); hold berjalan ada pada `holdSince`. */
+  readonly holdHistory: ReadonlyArray<{ readonly since: IsoDate; readonly resumedOn: IsoDate; readonly reason: string }>;
   readonly progress: StageProgressView;
   readonly lateness: Lateness;
   readonly completion: CompletionVerdict | null;
@@ -194,6 +196,7 @@ export function buildStageView(project: ProjectSnapshot, stage: StageSnapshot, f
     actualEnd: stage.actualEnd,
     holdSince: stage.holdSince,
     holdReason: stage.holdReason,
+    holdHistory: stage.holdHistory,
     progress: buildProgress(stage, facts, project.status, ctx),
     lateness: stageLateness(latenessInput),
     completion:

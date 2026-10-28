@@ -17,32 +17,11 @@ import {
 import { getContainer } from '@/platform/container';
 import { MESSAGES } from '@/platform/messages';
 import { nextStamp, type ActionState } from '../../_lib/action-state';
+import { formText as text, toActionState as toState } from '../../_lib/form-data';
 import { requirePageSession } from '../../_lib/session';
 
 /** Jenis master yang diterima dari formulir (divalidasi, bukan dipercaya). */
 const KINDS: ReadonlyArray<MasterKind> = ['application', 'revision_category', 'activity_category', 'reschedule_reason', 'stage_step'];
-
-/**
- * Membaca teks dari FormData dengan aman.
- * Masukan: FormData dan nama isian. Keluaran: teks (kosong bila tidak ada).
- * Efek samping: tidak ada.
- * Rujukan: Security Design §7 (input tidak tepercaya).
- */
-function text(formData: FormData, name: string): string {
-  const value = formData.get(name);
-  return typeof value === 'string' ? value : '';
-}
-
-/**
- * Membangun state aksi dari hasil use case.
- * Masukan: hasil use case, pesan sukses, dan data opsional. Keluaran: `ActionState`.
- * Efek samping: tidak ada (fungsi murni).
- * Rujukan: Technical Design §8.
- */
-function toState(result: { ok: true } | { ok: false; error: { message: string; fields?: Readonly<Record<string, string>>; details?: unknown; rule?: string } }, success: string, data?: unknown): ActionState {
-  if (result.ok) return { ok: true, message: success, data, stamp: nextStamp() };
-  return { ok: false, message: result.error.message, fields: result.error.fields, data: result.error.details ?? data, stamp: nextStamp() };
-}
 
 /**
  * Aksi master pilihan: tambah, ubah nama, aktif/nonaktif, naik/turun urutan.
