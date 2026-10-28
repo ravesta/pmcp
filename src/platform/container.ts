@@ -20,6 +20,7 @@ import {
 import { createPrismaMasterRepository, createPrismaPicRepository, type MasterDeps } from '@/modules/master';
 import {
   createPrismaCardSource,
+  createPrismaProjectQueries,
   createPrismaProjectRepository,
   createPrismaReference,
   type ProjectDeps,
@@ -80,6 +81,7 @@ export function buildContainer(prisma: PrismaClient, clock: Clock, config: AppCo
     clock,
     transactor,
     projects: createPrismaProjectRepository(prisma),
+    queries: createPrismaProjectQueries(prisma),
     reference: createPrismaReference(prisma),
     // sementara membaca tabel kartu langsung; modul kanban (irisan 3) menggantikan adapter ini
     cards: createPrismaCardSource(prisma),

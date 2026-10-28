@@ -24,6 +24,8 @@ export interface AuditEventRow {
 export interface AuditQuery {
   readonly category?: AuditCategory;
   readonly actorUserId?: number;
+  /** Hanya peristiwa project tertentu (riwayat perubahan di Detail Project, FR-11-01). */
+  readonly projectCode?: string;
   readonly page: number;
   readonly pageSize: number;
 }
