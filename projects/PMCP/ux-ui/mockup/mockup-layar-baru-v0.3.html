@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PMCP Mockup Layar Baru v0.3</title>
+<style>
+:root{
+  --bg:#f3f5f8;--surface:#fff;--ink:#17212b;--muted:#566272;--line:#dbe1e8;--soft:#eaeef3;
+  --accent:#1f4fbf;--on-accent:#fff;--late:#c0392b;--late-bg:#fbe9e6;--warn:#a15c00;--warn-bg:#fdf1dc;--ok:#17794f;--ok-bg:#e1f3ea;--run-bg:#e3ecfb;
+  --font:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10151b;--surface:#192029;--ink:#e7ecf2;--muted:#9aa7b5;--line:#2c3743;--soft:#222b35;--accent:#7aa2ff;--on-accent:#0b1220;
+  --late:#ff8a7e;--late-bg:#3a1f1c;--warn:#f0b35a;--warn-bg:#3a2c12;--ok:#58cf9b;--ok-bg:#12301f;--run-bg:#1d2a45;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10151b;--surface:#192029;--ink:#e7ecf2;--muted:#9aa7b5;--line:#2c3743;--soft:#222b35;--accent:#7aa2ff;--on-accent:#0b1220;
+  --late:#ff8a7e;--late-bg:#3a1f1c;--warn:#f0b35a;--warn-bg:#3a2c12;--ok:#58cf9b;--ok-bg:#12301f;--run-bg:#1d2a45;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45;padding:16px 16px 48px}
+.wrap{max-width:1100px;margin-inline:auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:20px;margin:0}h2{font-size:16px;margin:0}h3{font-size:13px;margin:0}p{margin:0}
+.muted{color:var(--muted)}.small{font-size:12px}.mono{font-family:var(--mono)}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.banner{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn);border-radius:6px;padding:8px 12px;font-size:12px}
+.top{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{background:none;border:0;border-right:1px solid var(--line);padding:6px 12px;min-height:34px;color:var(--muted);font-weight:500}
+.seg button:last-child{border-right:0}.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.btn{background:var(--accent);color:var(--on-accent);border:1px solid var(--accent);border-radius:6px;padding:6px 14px;min-height:36px;font-weight:500}
+.btn.sec{background:none;color:var(--accent)}.btn.danger{background:var(--late);border-color:var(--late);color:#fff}.btn:disabled{opacity:.5;cursor:not-allowed}
+.lnk{background:none;border:0;color:var(--accent);text-decoration:underline;padding:4px}
+.field{display:flex;flex-direction:column;gap:4px}.field label{font-size:12px;color:var(--muted);font-weight:500}
+input,select{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-height:38px;width:100%}
+input[aria-invalid="true"]{border-color:var(--late)}
+.err{color:var(--late);font-size:12px}.hint{color:var(--muted);font-size:12px}
+.msg{padding:8px 12px;border-radius:6px;font-size:13px}.msg.err{background:var(--late-bg);color:var(--late)}.msg.ok{background:var(--ok-bg);color:var(--ok)}.msg.wn{background:var(--warn-bg);color:var(--warn)}.msg.info{background:var(--run-bg);color:var(--accent)}
+.chip{display:inline-block;font-size:11px;padding:1px 8px;border-radius:10px;border:1px solid var(--line);white-space:nowrap}
+.c-ok{background:var(--ok-bg);color:var(--ok);border-color:transparent}.c-warn{background:var(--warn-bg);color:var(--warn);border-color:transparent}.c-run{background:var(--run-bg);color:var(--accent);border-color:transparent}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:12px;color:var(--muted);background:var(--soft)}
+.tbl{overflow-x:auto}.tbl table{min-width:640px}
+.row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+/* kerangka aplikasi (header) */
+.app{border:1px solid var(--line);border-radius:10px;background:var(--bg);overflow:hidden}
+.apphead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{font-weight:600;font-size:18px}
+.menu{display:flex;flex-wrap:wrap;gap:4px}
+.menu button{background:none;border:0;border-bottom:3px solid transparent;padding:8px 12px;color:var(--muted);font-weight:500}
+.menu button[aria-current="page"]{color:var(--accent);border-bottom-color:var(--accent)}
+.user{position:relative}
+.user>button{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 4px;min-height:36px}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-weight:600;font-size:12px}
+.pop{position:absolute;right:0;top:42px;z-index:5;background:var(--surface);border:1px solid var(--line);border-radius:8px;min-width:220px;padding:6px;box-shadow:0 6px 20px rgba(0,0,0,.15)}
+.pop .who{padding:8px 10px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.pop button{display:block;width:100%;text-align:left;background:none;border:0;padding:8px 10px;border-radius:6px}
+.pop button:hover{background:var(--soft)}
+.appbody{padding:16px;display:flex;flex-direction:column;gap:12px}
+/* login */
+.loginwrap{min-height:440px;display:grid;place-items:center;padding:24px 12px}
+.logincard{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:14px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.pwbox{position:relative}.pwbox input{padding-right:64px}.pwbox button{position:absolute;right:4px;top:4px;bottom:4px;background:none;border:0;color:var(--accent);padding:0 10px;border-radius:6px}
+.meter{display:flex;flex-direction:column;gap:4px}.rules{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rules li{font-size:12px;color:var(--muted)}.rules li.pass{color:var(--ok)}.rules li.fail{color:var(--late)}
+.rules li::before{content:"○ "}.rules li.pass::before{content:"✓ "}.rules li.fail::before{content:"✕ "}
+/* dialog */
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:0;max-width:520px;width:calc(100% - 32px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}.dlg{padding:18px;display:flex;flex-direction:column;gap:12px}
+.tempbox{border:2px dashed var(--warn);background:var(--warn-bg);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.tempbox .pw{font-family:var(--mono);font-size:20px;letter-spacing:.04em;color:var(--ink);word-break:break-all}
+.note{border-left:4px solid var(--accent);background:var(--run-bg);padding:8px 12px;border-radius:0 6px 6px 0;font-size:12px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.pill{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:1px 8px;background:var(--surface)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="banner"><b>Mockup layar baru v0.3, bukan baseline.</b> Melengkapi mockup v0.2 untuk layar yang belum ada: Login, Ubah Password, Master PIC (Tambah, Reset password, Nonaktifkan), dan menu pengguna di header. Mengikuti FSD v1.1 (FR-01-01 s.d. FR-01-06, FR-08-01). Data contoh.</div>
+  <div class="top">
+    <div><h1>PMCP</h1><span class="muted small">Layar baru untuk handoff UX/UI</span></div>
+    <div class="row">
+      <div class="seg" role="group" aria-label="Pilih layar" id="screens">
+        <button type="button" data-s="login" aria-pressed="true">1. Login</button>
+        <button type="button" data-s="change" aria-pressed="false">2. Ubah Password</button>
+        <button type="button" data-s="pic" aria-pressed="false">3. Master PIC</button>
+        <button type="button" data-s="header" aria-pressed="false">4. Header</button>
+      </div>
+      <button class="btn sec" type="button" id="theme">Tema</button>
+    </div>
+  </div>
+  <div id="view"></div>
+</div>
+
+<dialog id="dlg" aria-labelledby="dT"><div class="dlg" id="dlgBody"></div></dialog>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const esc=t=>String(t??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let screen="login", loginState="idle", changeMode="forced", fails=0, users=[
+  {n:"Rina",s:"BA",login:true,u:"rina",on:true,proj:2},{n:"Dimas",s:"BA",login:true,u:"dimas",on:true,proj:1},{n:"Maya",s:"BA",login:true,u:"maya",on:true,proj:1},
+  {n:"Sari",s:"QA",login:true,u:"sari",on:true,proj:3},{n:"Budi",s:"QA",login:true,u:"budi",on:true,proj:1},
+  {n:"Andi",s:"DEV",login:false,u:"",on:true,proj:2},{n:"Tono",s:"DEV",login:false,u:"",on:true,proj:2}];
+const STN={BA:"Business Analyst",DEV:"Development",QA:"Quality Assurance"};
+const COMMON=["password12345","123456789012","qwertyuiop12","passwordpassword"];
+
+/* ---------------- 1. Login (FR-01-01, Screen 001) ---------------- */
+function login(){
+  const st=loginState,locked=st==="locked";
+  return `<div class="card"><div class="row" style="justify-content:space-between"><h2>Login</h2>
+    <div class="seg" role="group" aria-label="Keadaan layar login">${[["idle","Awal"],["error","Salah"],["locked","Ditunda"],["expired","Sesi habis"]].map(([k,l])=>`<button type="button" data-ls="${k}" aria-pressed="${st===k}">${l}</button>`).join("")}</div></div>
+    <p class="muted small">Tombol di atas hanya untuk melihat keadaan layar. Dua kontrol pada FSD: pesan generik yang sama untuk username tidak dikenal, password salah, dan akun nonaktif; penundaan 15 menit setelah 5 kali gagal.</p>
+    <div class="loginwrap"><form class="logincard" id="fLogin" novalidate aria-labelledby="lt">
+      <div><div class="brand" id="lt">PMCP</div><div class="muted">Masuk untuk melihat dan mengelola pekerjaan tim</div></div>
+      ${st==="expired"?'<div class="msg info" role="status">Sesi Anda berakhir karena tidak aktif. Silakan masuk lagi.</div>':""}
+      ${st==="error"?'<div class="msg err" role="alert" id="lerr">Username atau password salah.</div>':""}
+      ${locked?'<div class="msg wn" role="alert" id="lerr">Terlalu banyak percobaan gagal. Coba lagi pukul <b>10:42</b> (sekitar 15 menit lagi).</div>':""}
+      <div class="field"><label for="lu">Username</label><input id="lu" autocomplete="username" autocapitalize="none" spellcheck="false" ${st==="error"?'aria-invalid="true" aria-describedby="lerr"':""} ${locked?"disabled":""} value="${st==="error"?"rina":""}"></div>
+      <div class="field"><label for="lp">Password</label><div class="pwbox"><input id="lp" type="password" autocomplete="current-password" ${st==="error"?'aria-invalid="true" aria-describedby="lerr"':""} ${locked?"disabled":""}><button type="button" data-show="lp" aria-label="Tampilkan password" ${locked?"disabled":""}>Lihat</button></div></div>
+      <button class="btn" type="submit" ${locked?"disabled":""}>Masuk</button>
+      <p class="hint">Lupa password? Hubungi Manager untuk direset. Aplikasi ini hanya dapat dibuka dari jaringan kantor.</p>
+    </form></div></div>`;
+}
+
+/* ---------------- 2. Ubah Password (FR-01-02, Screen 002) ---------------- */
+function ruleState(pw,user){
+  return [["Minimal 12 karakter",pw.length>=12],["Maksimal 128 karakter",pw.length>0&&pw.length<=128],["Berbeda dari username",pw.length>0&&pw.toLowerCase()!==user],["Bukan password yang umum dipakai",pw.length>0&&!COMMON.includes(pw.toLowerCase())]];
+}
+function change(){
+  const forced=changeMode==="forced";
+  return `<div class="card"><div class="row" style="justify-content:space-between"><h2>Ubah Password</h2>
+   <div class="seg" role="group" aria-label="Mode"><button type="button" data-cm="forced" aria-pressed="${forced}">Wajib ganti (login pertama)</button><button type="button" data-cm="voluntary" aria-pressed="${!forced}">Ganti sendiri</button></div></div>
+   <div class="app"><div class="apphead"><span class="brand">PMCP</span>${forced?'<span class="muted small">Menu lain dinonaktifkan sampai password diganti</span>':headerUser("Rina","PIC Business Analyst")}</div>
+   <div class="appbody"><form id="fChange" novalidate style="max-width:460px;display:flex;flex-direction:column;gap:12px" aria-labelledby="ct">
+     <h2 id="ct">${forced?"Buat password baru Anda":"Ganti password"}</h2>
+     ${forced?'<div class="msg wn" role="status">Anda masuk dengan password sementara. Buat password baru sebelum memakai aplikasi.</div>':'<p class="muted small">Setelah password diganti, perangkat lain yang sedang masuk dengan akun ini akan keluar. Perangkat ini tetap masuk.</p>'}
+     <div class="field"><label for="cp0">${forced?"Password sementara":"Password saat ini"}</label><div class="pwbox"><input id="cp0" type="password" autocomplete="current-password"><button type="button" data-show="cp0" aria-label="Tampilkan">Lihat</button></div></div>
+     <div class="field"><label for="cp1">Password baru</label><div class="pwbox"><input id="cp1" type="password" autocomplete="new-password" aria-describedby="rules"><button type="button" data-show="cp1" aria-label="Tampilkan">Lihat</button></div></div>
+     <ul class="rules" id="rules" aria-live="polite"></ul>
+     <div class="field"><label for="cp2">Ulangi password baru</label><div class="pwbox"><input id="cp2" type="password" autocomplete="new-password"><button type="button" data-show="cp2" aria-label="Tampilkan">Lihat</button></div><span class="err" id="cmatch" role="alert"></span></div>
+     <div id="cmsg" role="alert"></div>
+     <div class="row"><button class="btn" type="submit">Simpan password</button>${forced?'<button class="btn sec" type="button">Keluar</button>':'<button class="btn sec" type="button">Batal</button>'}</div>
+     <p class="hint">Gunakan kalimat yang mudah diingat dan panjang. Tidak perlu simbol atau huruf besar. Password tidak perlu diganti berkala.</p>
+   </form></div></div></div>`;
+}
+
+/* ---------------- 3. Master PIC (FR-08-01, FR-01-05, Screen 008) ---------------- */
+function pic(){
+  return `<div class="card"><div class="row" style="justify-content:space-between"><div><h2>Master PIC</h2><div class="muted small">Manager mengelola daftar PIC dan akun. PIC Development dicatat sebagai nama saja (tanpa login).</div></div><button class="btn" type="button" id="addPic">+ Tambah PIC</button></div>
+   <div class="tbl"><table><thead><tr><th>Nama</th><th>Tahapan</th><th>Login</th><th>Username</th><th>Status</th><th>Aksi</th></tr></thead><tbody>
+   ${users.map((p,i)=>`<tr><td>${esc(p.n)}</td><td>${STN[p.s]}</td><td>${p.login?'<span class="chip c-ok">Ya</span>':'<span class="chip">Tidak (dicatat)</span>'}</td><td class="mono">${p.login?esc(p.u):"-"}</td>
+    <td>${p.on?'<span class="chip c-ok">Aktif</span>':'<span class="chip">Nonaktif</span>'}</td>
+    <td><div class="row"><button class="btn sec" type="button" data-pa="rename|${i}">Ubah nama</button>${p.login&&p.on?`<button class="btn sec" type="button" data-pa="reset|${i}">Reset password</button>`:""}<button class="btn sec" type="button" data-pa="toggle|${i}">${p.on?"Nonaktifkan":"Aktifkan"}</button></div></td></tr>`).join("")}
+   </tbody></table></div>
+   <div class="legend"><span>Tahapan dan username tidak dapat diubah setelah PIC dibuat.</span><span>PIC tidak dihapus, hanya dinonaktifkan.</span></div></div>`;
+}
+function addDlg(){
+  return `<h2 id="dT">Tambah PIC</h2><form id="fAdd" novalidate style="display:flex;flex-direction:column;gap:12px">
+   <div class="field"><label for="an">Nama <span class="err">*</span></label><input id="an" maxlength="100" autocomplete="off"><span class="err" id="anE" role="alert"></span></div>
+   <div class="field"><label for="as">Tahapan <span class="err">*</span></label><select id="as"><option value="">Pilih tahapan</option><option value="BA">Business Analyst</option><option value="DEV">Development</option><option value="QA">Quality Assurance</option></select><span class="hint">Tidak dapat diubah setelah disimpan.</span><span class="err" id="asE" role="alert"></span></div>
+   <fieldset style="border:1px solid var(--line);border-radius:8px;padding:10px"><legend class="small muted">Akun login</legend>
+     <div class="row" role="radiogroup" aria-label="Akun login"><label><input type="radio" name="al" value="ya" checked style="width:auto;min-height:0"> Ya, buatkan akun</label><label><input type="radio" name="al" value="tidak" style="width:auto;min-height:0"> Tidak (hanya dicatat)</label></div>
+     <div class="note" id="alNote" hidden style="margin-top:8px">PIC Development dicatat sebagai nama saja dan tidak dapat memiliki akun login.</div>
+     <div class="field" id="auW" style="margin-top:8px"><label for="au">Username <span class="err">*</span></label><input id="au" maxlength="30" autocapitalize="none" spellcheck="false" autocomplete="off"><span class="hint">4 sampai 30 karakter: huruf kecil, angka, titik, garis bawah, atau strip. Huruf besar otomatis menjadi kecil.</span><span class="err" id="auE" role="alert"></span></div></fieldset>
+   <div class="row" style="justify-content:flex-end"><button class="btn sec" type="button" data-close>Batal</button><button class="btn" type="submit">Simpan PIC</button></div></form>`;
+}
+function tempDlg(name,u,pw,created){
+  return `<h2 id="dT">${created?"PIC ditambahkan":"Password direset"}</h2>
+   <p>Berikan password sementara ini kepada <b>${esc(name)}</b> (username <span class="mono">${esc(u)}</span>).</p>
+   <div class="tempbox" role="group" aria-label="Password sementara"><span class="small muted">Password sementara (hanya tampil sekali)</span><span class="pw" id="tpw">${esc(pw)}</span><button class="btn sec" type="button" id="copyPw">Salin</button></div>
+   <div class="msg wn" role="alert">Password ini <b>tidak dapat ditampilkan lagi</b> setelah jendela ditutup. Jika hilang, lakukan Reset password. ${created?"":"Semua sesi aktif milik PIC ini telah diakhiri."}</div>
+   <p class="hint">${esc(name)} wajib membuat password baru saat masuk pertama.</p>
+   <label class="row"><input type="checkbox" id="noted" style="width:auto;min-height:0"> Saya sudah mencatat password ini</label>
+   <div class="row" style="justify-content:flex-end"><button class="btn" type="button" id="doneTemp" disabled>Selesai</button></div>`;
+}
+function resetDlg(i){const p=users[i];
+  return `<h2 id="dT">Reset password ${esc(p.n)}?</h2><p>Sistem membuat password sementara baru. Semua sesi aktif ${esc(p.n)} akan diakhiri dan penundaan login dihapus. Password lama tidak dapat dipakai lagi.</p>
+   <div class="row" style="justify-content:flex-end"><button class="btn sec" type="button" data-close>Batal</button><button class="btn danger" type="button" data-doreset="${i}">Ya, reset password</button></div>`;
+}
+function toggleDlg(i){const p=users[i];
+  if(!p.on) return `<h2 id="dT">Aktifkan ${esc(p.n)}?</h2><p>${esc(p.n)} dapat dipilih kembali sebagai PIC${p.login?" dan dapat login lagi":""}.</p><div class="row" style="justify-content:flex-end"><button class="btn sec" type="button" data-close>Batal</button><button class="btn" type="button" data-dotoggle="${i}">Aktifkan</button></div>`;
+  return `<h2 id="dT">Nonaktifkan ${esc(p.n)}?</h2>
+   ${p.proj?`<div class="msg wn" role="alert"><b>${esc(p.n)} masih menjadi PIC pada ${p.proj} project yang belum selesai.</b> Penugasan tidak dilepas otomatis; Anda perlu menggantinya sendiri.</div>
+   <ul class="small" style="margin:0;padding-left:18px">${["PRJ-001 Penyempurnaan Modul Klaim (Business Analyst)","PRJ-012 Migrasi Data Nasabah (Business Analyst)"].slice(0,p.proj).map(t=>`<li>${t}</li>`).join("")}</ul>`:`<p>Tidak ada penugasan aktif.</p>`}
+   <p class="small muted">${p.login?"Akun tidak dapat login dan sesi aktif diakhiri. ":""}Data lama tetap tampil. Kartu miliknya tetap tercatat.</p>
+   <div class="row" style="justify-content:flex-end"><button class="btn sec" type="button" data-close>Batal</button><button class="btn danger" type="button" data-dotoggle="${i}">Ya, nonaktifkan</button></div>`;
+}
+function renameDlg(i){const p=users[i];
+  return `<h2 id="dT">Ubah nama PIC</h2><form id="fRen" data-i="${i}" novalidate style="display:flex;flex-direction:column;gap:12px"><div class="field"><label for="rn">Nama</label><input id="rn" maxlength="100" value="${esc(p.n)}"><span class="err" id="rnE" role="alert"></span></div>
+   <p class="hint">Tahapan dan username tidak dapat diubah.</p><div class="row" style="justify-content:flex-end"><button class="btn sec" type="button" data-close>Batal</button><button class="btn" type="submit">Simpan</button></div></form>`;
+}
+
+/* ---------------- 4. Header (Screen 025, FR-01-03, FR-01-04) ---------------- */
+function headerUser(name,role){
+  return `<div class="user"><button type="button" id="userBtn" aria-haspopup="menu" aria-expanded="false"><span class="avatar" aria-hidden="true">${esc(name[0])}</span><span style="text-align:left"><b style="display:block;line-height:1.1">${esc(name)}</b><span class="small muted">${esc(role)}</span></span></button>
+   <div class="pop" role="menu" id="userPop" hidden><div class="who"><b>${esc(name)}</b><div class="small muted">${esc(role)}</div></div><button type="button" role="menuitem" data-s2="change">Ganti password</button><button type="button" role="menuitem" data-s2="login">Keluar</button></div></div>`;
+}
+function header(){
+  const mk=(role,items,cur)=>`<div class="app"><div class="apphead"><div class="row"><span class="brand">PMCP</span><nav class="menu" aria-label="Menu utama">${items.map(t=>`<button type="button" ${t===cur?'aria-current="page"':""}>${t}</button>`).join("")}</nav></div>${headerUser(...role)}</div>
+   <div class="appbody"><div class="muted small">Isi halaman ${cur}</div></div></div>`;
+  return `<div class="card"><h2>Header aplikasi dan menu pengguna</h2><p class="muted small">Menu utama mengikuti peran (FR-01-04). Menu pengguna memuat Ganti password dan Keluar. Klik nama untuk membuka menu.</p>
+   <h3>Manager (Head of BA dan Head QA)</h3>${mk(["Manager","Head of BA dan Head QA"],["Dashboard","Project","Kanban","Riwayat","Master"],"Dashboard")}
+   <h3>PIC (BA atau QA)</h3>${mk(["Rina","PIC Business Analyst"],["Dashboard","Project","Kanban","Riwayat"],"Dashboard")}
+   <div class="note">Pada layar sempit (di bawah 640 px) menu utama tampil sebagai baris yang dapat digulir mendatar; menu pengguna tetap di kanan atas. PIC tidak melihat Master; permintaan langsung ke alamat Master menampilkan "Anda tidak memiliki akses ke halaman ini."</div></div>`;
+}
+
+/* ---------------- render dan perilaku ---------------- */
+function render(){
+  document.querySelectorAll("#screens button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.s===screen)));
+  $("#view").innerHTML=({login,change,pic,header})[screen]();
+  if(screen==="change")updRules();
+}
+function updRules(){
+  const pw=($("#cp1")||{}).value||"",r=ruleState(pw,"rina");
+  $("#rules").innerHTML=r.map(([t,ok])=>`<li class="${!pw.length?"":ok?"pass":"fail"}">${t}</li>`).join("");
+}
+function openDlg(html){$("#dlgBody").innerHTML=html;if(!$("#dlg").open)$("#dlg").showModal();}
+const genPw=()=>{const w=["kopi","hujan","sabun","bukit","meja","rumah","tenun","pagi","laut","batu"],pick=()=>w[Math.floor(Math.random()*w.length)];return pick()+"-"+pick()+"-"+pick()+"-"+Math.floor(1000+Math.random()*9000);};
+
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button,[data-close]");if(!t)return;
+  if(t.dataset.s){screen=t.dataset.s;render();return;}
+  if(t.dataset.s2){screen=t.dataset.s2;render();return;}
+  if(t.dataset.ls){loginState=t.dataset.ls;render();return;}
+  if(t.dataset.cm){changeMode=t.dataset.cm;render();return;}
+  if(t.dataset.show){const i=document.getElementById(t.dataset.show);const h=i.type==="password";i.type=h?"text":"password";t.textContent=h?"Sembunyi":"Lihat";t.setAttribute("aria-label",h?"Sembunyikan password":"Tampilkan password");return;}
+  if(t.id==="userBtn"){const p=$("#userPop"),o=p.hidden;p.hidden=!o;t.setAttribute("aria-expanded",String(o));return;}
+  if(t.id==="addPic"){openDlg(addDlg());return;}
+  if(t.dataset.pa){const [a,i]=t.dataset.pa.split("|");openDlg(({reset:resetDlg,toggle:toggleDlg,rename:renameDlg})[a](Number(i)));return;}
+  if(t.dataset.close!==undefined){$("#dlg").close();return;}
+  if(t.dataset.doreset){const p=users[Number(t.dataset.doreset)];openDlg(tempDlg(p.n,p.u,genPw(),false));return;}
+  if(t.dataset.dotoggle){const p=users[Number(t.dataset.dotoggle)];p.on=!p.on;$("#dlg").close();render();return;}
+  if(t.id==="copyPw"){navigator.clipboard&&navigator.clipboard.writeText($("#tpw").textContent);t.textContent="Tersalin";return;}
+  if(t.id==="doneTemp"){$("#dlg").close();render();return;}
+});
+document.addEventListener("change",e=>{
+  if(e.target.id==="noted")$("#doneTemp").disabled=!e.target.checked;
+  if(e.target.name==="al"){const dev=$("#as").value==="DEV";if(dev&&e.target.value==="ya"){e.target.form.querySelector('input[value="tidak"]').checked=true;}syncAdd();}
+  if(e.target.id==="as")syncAdd();
+});
+function syncAdd(){const f=$("#fAdd");if(!f)return;const dev=$("#as").value==="DEV";if(dev)f.querySelector('input[value="tidak"]').checked=true;
+  const yes=f.querySelector('input[name="al"]:checked').value==="ya";$("#alNote").hidden=!dev;$("#auW").hidden=!yes;f.querySelector('input[value="ya"]').disabled=dev;}
+document.addEventListener("input",e=>{
+  if(e.target.id==="cp1")updRules();
+  if(e.target.id==="au")e.target.value=e.target.value.toLowerCase();
+});
+document.addEventListener("submit",e=>{
+  e.preventDefault();const f=e.target;
+  if(f.id==="fLogin"){const u=$("#lu").value.trim(),p=$("#lp").value;
+    if(!u||!p){loginState="error";render();$("#lerr")&&($("#lerr").textContent="Username dan password wajib diisi.");return;}
+    fails++;loginState=fails>=5?"locked":"error";render();return;}
+  if(f.id==="fChange"){const pw=$("#cp1").value,ok=ruleState(pw,"rina").every(r=>r[1]);
+    $("#cmatch").textContent="";$("#cmsg").innerHTML="";
+    if(!$("#cp0").value){$("#cmsg").innerHTML='<div class="msg err">Isi '+(changeMode==="forced"?"password sementara":"password saat ini")+".</div>";return;}
+    if(!ok){$("#cmsg").innerHTML='<div class="msg err">Password baru belum memenuhi aturan di atas.</div>';return;}
+    if(pw!==$("#cp2").value){$("#cmatch").textContent="Konfirmasi harus sama dengan password baru.";return;}
+    $("#cmsg").innerHTML='<div class="msg ok" role="status">Password berhasil diganti. '+(changeMode==="forced"?"Mengarahkan ke Dashboard...":"Sesi lain Anda telah diakhiri.")+"</div>";return;}
+  if(f.id==="fAdd"){const n=$("#an").value.trim(),s=$("#as").value,yes=f.querySelector('input[name="al"]:checked').value==="ya",u=($("#au")||{}).value||"";let bad=false;
+    ["anE","asE","auE"].forEach(i=>$("#"+i).textContent="");
+    if(!n){$("#anE").textContent="Nama wajib diisi.";bad=true;}
+    if(!s){$("#asE").textContent="Pilih tahapan.";bad=true;}
+    if(yes&&s!=="DEV"){if(!/^[a-z0-9._-]{4,30}$/.test(u)){$("#auE").textContent="Username 4 sampai 30 karakter: huruf kecil, angka, titik, garis bawah, atau strip.";bad=true;}
+      else if(users.some(x=>x.u===u)){$("#auE").textContent="Username sudah dipakai.";bad=true;}}
+    if(bad)return;
+    users.push({n,s,login:yes&&s!=="DEV",u:yes&&s!=="DEV"?u:"",on:true,proj:0});render();
+    if(yes&&s!=="DEV")openDlg(tempDlg(n,u,genPw(),true));else $("#dlg").close();return;}
+  if(f.id==="fRen"){const n=$("#rn").value.trim();if(!n){$("#rnE").textContent="Nama wajib diisi.";return;}users[Number(f.dataset.i)].n=n;$("#dlg").close();render();return;}
+});
+$("#theme").addEventListener("click",()=>{const r=document.documentElement;r.dataset.theme=r.dataset.theme==="dark"?"light":"dark";});
+$("#dlg").addEventListener("cancel",e=>{if($("#tpw")){e.preventDefault();}});   /* password sementara tidak tertutup tanpa konfirmasi */
+render();
+</script>
+</body>
+</html>
