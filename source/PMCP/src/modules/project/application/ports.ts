@@ -315,6 +315,8 @@ export interface ProjectQueryRepository {
   findProjectIdByCode(code: string): Promise<number | null>;
   /** Tahapan Berjalan pada project Berjalan, calon penanda Tertinggal (dihitung di domain). */
   listRunningStageCandidates(): Promise<Array<{ projectId: number; stage: StageRef }>>;
+  /** Id seluruh project dengan status tertentu (dasar Dashboard: project selain Batal dan Selesai). */
+  listProjectIdsByStatus(statuses: ReadonlyArray<ProjectStatus>): Promise<number[]>;
   /** Seluruh revisi estimasi semua tahapan sebuah project, terlama di atas. */
   listRevisionsOfProject(projectId: number): Promise<RevisionRow[]>;
   /** Daftar Assignment baru (belum dilihat) milik PIC. */

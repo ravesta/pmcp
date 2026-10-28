@@ -154,6 +154,12 @@ export function createPrismaProjectQueries(prisma: PrismaClient): ProjectQueryRe
       return row ? Number(row.id) : null;
     },
 
+    /** Id project menurut status. Efek samping: tidak ada (hanya baca). */
+    async listProjectIdsByStatus(statuses) {
+      const rows = await prisma.project.findMany({ where: { status: { in: [...statuses] } }, select: { id: true }, orderBy: { id: 'asc' } });
+      return rows.map((row) => Number(row.id));
+    },
+
     /** Tahapan Berjalan pada project Berjalan. Efek samping: tidak ada (hanya baca). */
     async listRunningStageCandidates() {
       const rows = await prisma.project_stage.findMany({
