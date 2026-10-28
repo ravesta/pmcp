@@ -25,6 +25,9 @@ export interface LoginSuccess {
 /** Batas panjang kunci throttle pada database (varchar 100). */
 const KEY_MAX = 100;
 
+/** Penanda sumber alamat yang tidak dapat ditentukan; tidak dibuat penghitung agar tidak mengunci semua pengguna. */
+const UNKNOWN_ADDRESS = 'tidak-diketahui';
+
 /**
  * Memilih waktu penundaan terlama dari dua penghitung.
  * Masukan: dua waktu boleh-coba-lagi (atau null). Keluaran: yang terlama, atau null bila keduanya null.
@@ -42,6 +45,7 @@ function latest(a: Date | null, b: Date | null): Date | null {
  * VALIDATION (isian kosong, tidak dihitung percobaan), THROTTLED (pesan sama untuk username dikenal maupun
  * tidak), AUTHENTICATION ("Username atau password salah." generik untuk username tak dikenal, password salah,
  * akun nonaktif).
+ * Sumber alamat tak diketahui hanya dibatasi per username (tanpa penghitung IP bersama).
  * Efek samping: menulis penghitung throttle, membuat sesi, dan mencatat audit kategori Keamanan. Untuk username
  * tak dikenal, nilai yang diketik TIDAK dicatat (CL-056d).
  * Rujukan: FR-01-01 (butir 1 sampai 7), EC-01-01.01 sampai EC-01-01.03, Security Design §4.3.
@@ -52,11 +56,12 @@ export async function login(deps: AuthDeps, input: LoginInput): Promise<Result<L
     return fail({ code: 'VALIDATION', message: MESSAGES.LOGIN_REQUIRED_FIELDS });
   }
   const userKey = username.slice(0, KEY_MAX);
-  const ipKey = input.sourceAddress.slice(0, KEY_MAX) || 'tidak-diketahui';
+  const ipKey = input.sourceAddress.slice(0, KEY_MAX) || UNKNOWN_ADDRESS;
+  const trackIp = ipKey !== UNKNOWN_ADDRESS;
   const now = deps.clock.now();
   const repo = deps.repository;
 
-  const [userState, ipState] = await Promise.all([repo.getThrottle('USER', userKey), repo.getThrottle('IP', ipKey)]);
+  const [userState, ipState] = await Promise.all([repo.getThrottle('USER', userKey), trackIp ? repo.getThrottle('IP', ipKey) : Promise.resolve(null)]);
   const user = await repo.findUserByUsername(username);
 
   const lock = latest(lockedUntil(userState, now), lockedUntil(ipState, now));
@@ -79,7 +84,9 @@ export async function login(deps: AuthDeps, input: LoginInput): Promise<Result<L
   if (!valid || !user) {
     await Promise.all([
       repo.saveThrottle('USER', userKey, afterFailure(userState, now, THROTTLE_RULES.userMaxFailures, THROTTLE_RULES.lockMinutes)),
-      repo.saveThrottle('IP', ipKey, afterFailure(ipState, now, THROTTLE_RULES.ipMaxFailures, THROTTLE_RULES.lockMinutes, THROTTLE_RULES.ipWindowMinutes)),
+      trackIp
+        ? repo.saveThrottle('IP', ipKey, afterFailure(ipState, now, THROTTLE_RULES.ipMaxFailures, THROTTLE_RULES.lockMinutes, THROTTLE_RULES.ipWindowMinutes))
+        : Promise.resolve(),
     ]);
     await deps.writeAudit(null, {
       actorUserId: user?.id ?? null,

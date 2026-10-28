@@ -48,6 +48,21 @@ Simpan lewat use case atomik `updateStage` (planning, revisi, progres, status da
 Detail (Rencana kerja, Log activity) menunggu irisan 3. Uji: 306 uji hijau; alur e2e manual (Playwright) lulus tanpa
 galat konsol.
 
+### Tinjauan keamanan irisan 1 (2026-10-28)
+
+Ditinjau: login, throttle, sesi, ganti dan reset password, cookie, aksi master, header. Sudah benar: hash argon2id
+dengan verifikasi tiruan (waktu seragam), token 32 byte CSPRNG yang disimpan sebagai hash, cookie HttpOnly/SameSite/
+`__Host-`, validasi sesi di server pada setiap permintaan, sesi dicabut saat ganti atau reset password, pesan login
+generik, audit tanpa password.
+
+| Temuan | Tindakan |
+|---|---|
+| Header keamanan (CSP, HSTS, nosniff, Referrer-Policy, Permissions-Policy, no-store) belum ada | Diperbaiki: `platform/security-headers.ts` dipasang di `next.config.ts`, diuji |
+| Server Action di belakang proxy tidak dibatasi asal | Diperbaiki: `serverActions.allowedOrigins` dari `APP_ORIGIN` |
+| Sumber alamat tak diketahui berbagi satu penghitung IP, 20 salah login mengunci semua pengguna | Diperbaiki: tanpa alamat, hanya throttle per username |
+| CSP memakai `'unsafe-inline'` untuk skrip dan gaya (Next.js dan Emotion), belum bernonce | Terbuka (risiko rendah): versi bernonce lewat `proxy.ts` dan cache Emotion bernonce, dijadwalkan sebelum rilis |
+| Penghitung throttle dibaca lalu ditulis tanpa kunci, percobaan paralel dapat melewati batas sedikit | Terbuka (risiko rendah): ganti dengan upsert atomik `failures = failures + 1` sebelum rilis |
+
 ### Penyempurnaan terhadap Technical Design (tidak mengubah keputusan)
 
 | Hal | Tertulis di Technical Design | Implementasi | Alasan |
