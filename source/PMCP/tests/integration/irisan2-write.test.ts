@@ -5,12 +5,9 @@
  *
  * Uji ini membutuhkan PostgreSQL (Prisma tidak berjalan di PGlite); dilewati bila server tidak terjangkau.
  */
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { listAuditEvents } from '@/modules/audit';
 import type { Actor } from '@/modules/auth';
-import { createPic } from '@/modules/master';
 import {
   createProject,
   reviseStageEstimate,
@@ -20,139 +17,35 @@ import {
   updateStageStatus,
   type CreateProjectInput,
   type ProjectSnapshot,
-  type StageKind,
 } from '@/modules/project';
-import { buildContainer, type Container } from '@/platform/container';
-import { loadConfig } from '@/platform/config';
-import { createPrismaClient } from '@/platform/db';
-import type { Clock } from '@/shared/clock';
-import { toIsoDate } from '@/shared/iso-date';
+import type { Container } from '@/platform/container';
 import { createTestDb, type TestDb } from './_support/database';
-
-const MIGRATIONS_DIR = join(__dirname, '..', '..', 'prisma', 'migrations');
+import { createWorld, insertCard as insertCardIn, makeProject as makeProjectIn, snapshotOf, unwrap, type CardOptions, type World } from './_support/world';
 
 const testDb: TestDb = await createTestDb();
 const isPg = testDb.engine === 'postgres' && Boolean(testDb.url);
+let world: World;
 let container: Container;
-let now = new Date('2026-10-28T05:00:00Z');
-let today = '2026-10-28';
-
-/** Jam uji yang tanggal dan waktunya dapat diatur. */
-const clock: Clock = { today: () => toIsoDate(today), now: () => new Date(now.getTime()) };
-
 let manager: Actor;
 let rina: Actor; // PIC BA
 let dimas: Actor; // PIC QA
 let sari: Actor; // PIC BA lain
 let devPicId: number;
-let devPicId2: number;
 let revisionCategoryId: number;
+/** Keadaan jam uji; `clockState.today` diubah uji yang menguji perpindahan hari. */
+let clockState: World['clockState'];
 
-/**
- * Mengambil nilai berhasil dari sebuah hasil, gagal uji bila hasilnya galat.
- * Masukan: hasil use case. Keluaran: data.
- * Efek samping: tidak ada.
- * Rujukan: Technical Design §8.
- */
-function unwrap<T>(result: { ok: true; data: T } | { ok: false; error: { code: string; message: string } }): T {
-  if (!result.ok) throw new Error(`Hasil gagal tak terduga: ${result.error.code} ${result.error.message}`);
-  return result.data;
-}
-
-/**
- * Membuat PIC (dengan akun login bila bukan Development) lewat use case master dan mengembalikan pelakunya.
- * Masukan: nama, tahapan, username. Keluaran: pelaku PIC dan id PIC.
- * Efek samping: INSERT PIC dan akun beserta audit.
- * Rujukan: FR-08-01.
- */
-async function makePic(name: string, stage: StageKind, username?: string): Promise<{ actor: Actor | null; picId: number }> {
-  const created = unwrap(await createPic(container.master, manager, { name, stage, withLogin: stage !== 'DEV', username }));
-  if (stage === 'DEV') return { actor: null, picId: created.picId };
-  const user = await container.prisma.app_user.findFirstOrThrow({ where: { pic_id: BigInt(created.picId) } });
-  return {
-    actor: { userId: Number(user.id), role: 'PIC', picId: created.picId, picStage: stage, label: name, mustChangePassword: false },
-    picId: created.picId,
-  };
-}
-
-/**
- * Membuat project lewat use case dengan nilai bawaan yang dapat ditimpa.
- * Masukan: bagian masukan yang ingin diganti. Keluaran: id project dan kode.
- * Efek samping: membuat project dan audit.
- * Rujukan: FR-02-01.
- */
-async function makeProject(over: Partial<CreateProjectInput> = {}): Promise<{ projectId: number; code: string }> {
-  const result = unwrap(
-    await createProject(container.project, manager, {
-      info: { name: 'Portal Klaim Online' },
-      status: 'RUNNING',
-      statusReason: '',
-      stages: {},
-      ...over,
-    }),
-  );
-  return { projectId: result.projectId, code: result.code };
-}
-
-/**
- * Membaca snapshot project dari database untuk asersi.
- * Masukan: id project. Keluaran: snapshot.
- * Efek samping: tidak ada (hanya baca).
- * Rujukan: FR-11-01.
- */
-async function snapshot(projectId: number): Promise<ProjectSnapshot> {
-  const loaded = await container.prisma.$transaction(async (tx) => container.project.projects.lockProject(tx as never, projectId));
-  if (!loaded) throw new Error('Project tidak ditemukan');
-  return loaded;
-}
-
-/**
- * Menyisipkan kartu project langsung ke tabel (use case kartu belum ada pada irisan ini).
- * Masukan: pemilik, project, tahapan, kolom, progres, dan rencana. Keluaran: id kartu.
- * Efek samping: INSERT `card`.
- * Rujukan: FR-17-01, BL-40.
- */
-async function insertCard(picId: number, projectId: number, stage: 'BA' | 'QA', opts: { column?: 'PLANNED' | 'IN_PROGRESS' | 'DONE'; progress?: number; start?: string; end?: string }): Promise<number> {
-  const start = new Date(`${opts.start ?? '2026-10-26'}T00:00:00Z`);
-  const end = new Date(`${opts.end ?? '2026-10-30'}T00:00:00Z`);
-  const column = opts.column ?? 'PLANNED';
-  const card = await container.prisma.card.create({
-    data: {
-      kind: 'PROJECT',
-      owner_pic_id: BigInt(picId),
-      project_id: BigInt(projectId),
-      stage,
-      title: 'Kartu uji rencana',
-      board_column: column,
-      progress: opts.progress ?? 0,
-      plan_start: start,
-      plan_end: end,
-      plan_baseline_start: start,
-      plan_baseline_end: end,
-      done_on: column === 'DONE' ? end : null,
-    },
-    select: { id: true },
-  });
-  return Number(card.id);
-}
+/** Membuat project dengan nilai bawaan (pembungkus ringkas atas `makeProject` bersama). */
+const makeProject = (over: Partial<CreateProjectInput> = {}) => makeProjectIn(world, over);
+/** Membaca snapshot project untuk asersi. */
+const snapshot = (projectId: number) => snapshotOf(world, projectId);
+/** Menyisipkan kartu project untuk uji. */
+const insertCard = (picId: number, projectId: number, stage: 'BA' | 'QA', options: CardOptions = {}) => insertCardIn(world, picId, projectId, stage, options);
 
 beforeAll(async () => {
-  if (!isPg || !testDb.url) return;
-  const folders = readdirSync(MIGRATIONS_DIR, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
-  for (const folder of folders) await testDb.exec(readFileSync(join(MIGRATIONS_DIR, folder, 'migration.sql'), 'utf8'));
-  container = buildContainer(createPrismaClient(testDb.url), clock, loadConfig({ NODE_ENV: 'test', DATABASE_URL: testDb.url }));
-  const hash = await container.auth.hasher.hash('kopi-hitam-tanpa-gula');
-  const user = await container.prisma.app_user.create({
-    data: { username: 'manager', role: 'MANAGER', password_hash: hash, must_change_password: false },
-  });
-  manager = { userId: Number(user.id), role: 'MANAGER', picId: null, picStage: null, label: 'Manager', mustChangePassword: false };
-  rina = (await makePic('Rina', 'BA', 'rina.ba')).actor as Actor;
-  sari = (await makePic('Sari', 'BA', 'sari.ba')).actor as Actor;
-  dimas = (await makePic('Dimas', 'QA', 'dimas.qa')).actor as Actor;
-  devPicId = (await makePic('Budi', 'DEV')).picId;
-  devPicId2 = (await makePic('Wawan', 'DEV')).picId;
-  const category = await container.prisma.revision_category.findFirstOrThrow({ where: { name: 'Perubahan scope' } });
-  revisionCategoryId = Number(category.id);
+  if (!isPg) return;
+  world = await createWorld(testDb);
+  ({ container, manager, rina, sari, dimas, devPicId, revisionCategoryId, clockState } = world);
 }, 60_000);
 
 afterAll(async () => {
@@ -279,7 +172,7 @@ describe('status tahapan (FR-05-01, FR-13-02)', () => {
     const devDenied = await updateStageStatus(container.project, rina, { stageId: dev.id, expectedVersion: dev.version, target: 'RUNNING' });
     expect(!devDenied.ok && devDenied.error.code).toBe('FORBIDDEN');
     unwrap(await updateStageStatus(container.project, rina, { stageId: ba.id, expectedVersion: ba.version, target: 'RUNNING' }));
-    expect((await snapshot(projectId)).stages[0]).toMatchObject({ status: 'RUNNING', actualStart: today });
+    expect((await snapshot(projectId)).stages[0]).toMatchObject({ status: 'RUNNING', actualStart: clockState.today });
     unwrap(await updateStageStatus(container.project, manager, { stageId: dev.id, expectedVersion: dev.version, target: 'RUNNING' }));
   });
 
@@ -290,11 +183,11 @@ describe('status tahapan (FR-05-01, FR-13-02)', () => {
     expect(!noReason.ok && noReason.error.message).toBe('Isi alasan ditahan.');
     unwrap(await updateStageStatus(container.project, rina, { stageId: ba.id, expectedVersion: ba.version, target: 'HELD', reason: 'Menunggu data bisnis' }));
     ba = (await snapshot(projectId)).stages[0] as NonNullable<ProjectSnapshot['stages'][number]>;
-    expect(ba).toMatchObject({ status: 'HELD', holdSince: today, holdReason: 'Menunggu data bisnis' });
+    expect(ba).toMatchObject({ status: 'HELD', holdSince: clockState.today, holdReason: 'Menunggu data bisnis' });
 
-    today = '2026-11-02';
+    clockState.today = '2026-11-02';
     const resumed = unwrap(await updateStageStatus(container.project, rina, { stageId: ba.id, expectedVersion: ba.version, target: 'RUNNING' }));
-    today = '2026-10-28';
+    clockState.today = '2026-10-28';
     expect(resumed.suggestRevision).toBe(true);
     const after = (await snapshot(projectId)).stages[0];
     expect(after?.holdHistory).toEqual([{ since: '2026-10-28', resumedOn: '2026-11-02', reason: 'Menunggu data bisnis' }]);
@@ -312,7 +205,7 @@ describe('status tahapan (FR-05-01, FR-13-02)', () => {
     const noNote = await updateStageStatus(container.project, manager, { stageId: ba.id, expectedVersion: ba.version, target: 'DONE', note: 'x' });
     expect(!noNote.ok && noNote.error.code).toBe('VALIDATION');
     unwrap(await updateStageStatus(container.project, manager, { stageId: ba.id, expectedVersion: ba.version, target: 'DONE', note: 'Sisa kartu dibatalkan pemilik' }));
-    expect((await snapshot(projectId)).stages[0]).toMatchObject({ status: 'DONE', actualEnd: today, manualProgress: null });
+    expect((await snapshot(projectId)).stages[0]).toMatchObject({ status: 'DONE', actualEnd: clockState.today, manualProgress: null });
     const audit = unwrap(await listAuditEvents(container.auditRepository, manager, { page: 1, pageSize: 50 }));
     const event = audit.rows.find((row) => row.action === 'stage.status_changed' && row.projectCode === code);
     expect(event?.changes.some((c) => c.field === 'Catatan melewati syarat Selesai')).toBe(true);
@@ -323,7 +216,7 @@ describe('status tahapan (FR-05-01, FR-13-02)', () => {
     let ba = (await snapshot(projectId)).stages[0] as NonNullable<ProjectSnapshot['stages'][number]>;
     unwrap(await updateStageStatus(container.project, rina, { stageId: ba.id, expectedVersion: ba.version, target: 'DONE' }));
     ba = (await snapshot(projectId)).stages[0] as NonNullable<ProjectSnapshot['stages'][number]>;
-    expect(ba).toMatchObject({ status: 'DONE', actualStart: '2026-10-19', actualEnd: today });
+    expect(ba).toMatchObject({ status: 'DONE', actualStart: '2026-10-19', actualEnd: clockState.today });
     const picTry = await updateStageStatus(container.project, rina, { stageId: ba.id, expectedVersion: ba.version, target: 'RUNNING', note: 'ada bug' });
     expect(!picTry.ok && picTry.error.code).toBe('FORBIDDEN');
     unwrap(await updateStageStatus(container.project, manager, { stageId: ba.id, expectedVersion: ba.version, target: 'RUNNING', note: 'Ada bug ditemukan' }));

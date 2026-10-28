@@ -59,3 +59,22 @@ export async function listAuditEvents(
   const result = await repository.list({ ...query, page, pageSize });
   return ok({ ...result, page, pageSize });
 }
+
+/**
+ * Membaca riwayat perubahan sebuah project untuk Detail Project. Berbeda dengan Jejak Perubahan (hanya Manager),
+ * riwayat per project terbuka bagi semua pengguna yang login karena Detail Project dapat dibuka semua peran.
+ * Masukan: repository, kode project, halaman dan ukuran halaman. Keluaran: baris dan total, terbaru di atas.
+ * Efek samping: tidak ada (hanya baca).
+ * Rujukan: FR-11-01 butir 2, BL-07, FR-15-01.
+ */
+export async function listProjectHistory(
+  repository: AuditRepository,
+  projectCode: string,
+  page: number,
+  pageSize: number,
+): Promise<{ rows: AuditEventRow[]; total: number; page: number; pageSize: number }> {
+  const safePage = Math.max(1, Math.floor(page) || 1);
+  const safeSize = ALLOWED_PAGE_SIZES.includes(pageSize) ? pageSize : 10;
+  const result = await repository.list({ projectCode, page: safePage, pageSize: safeSize });
+  return { ...result, page: safePage, pageSize: safeSize };
+}

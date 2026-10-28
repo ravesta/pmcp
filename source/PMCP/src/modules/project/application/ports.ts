@@ -79,6 +79,7 @@ export interface ProjectSnapshot {
 /** Satu baris riwayat revisi estimasi. */
 export interface RevisionRow {
   readonly id: number;
+  readonly stageId: number;
   readonly seq: number;
   readonly previous: Estimate;
   readonly next: Estimate;
@@ -198,6 +199,12 @@ export interface ReferencePort {
   getRevisionCategory(id: number): Promise<RevisionCategoryRef | null>;
   /** Batas peringatan revisi berulang (master, awal 3). */
   getRevisionWarnThreshold(): Promise<number>;
+  /** Aplikasi aktif untuk pilihan pada formulir project (FR-08-02). */
+  listActiveApplications(): Promise<ApplicationRef[]>;
+  /** PIC aktif untuk pilihan penugasan tahapan (hanya yang sesuai tahapan dipakai UI). */
+  listActivePics(): Promise<PicRef[]>;
+  /** Kategori alasan revisi aktif untuk dialog revisi (FR-08-03). */
+  listActiveRevisionCategories(): Promise<RevisionCategoryRef[]>;
 }
 
 /** Rujukan tahapan untuk mencari kartunya (kartu terhubung lewat project dan jenis tahapan). */
@@ -238,7 +245,71 @@ export interface ProjectDeps {
   readonly clock: Clock;
   readonly transactor: Transactor;
   readonly projects: ProjectRepository;
+  readonly queries: ProjectQueryRepository;
   readonly reference: ReferencePort;
   readonly cards: CardSourcePort;
   readonly writeAudit: AuditWriter;
+}
+
+/** Status tahapan yang dapat dipilih pada filter (Screen [010] field 6). */
+export type StageStatusFilter = 'ALL' | 'OPEN' | 'RUNNING' | 'LATE' | 'LAGGING' | 'HELD' | 'DONE';
+
+/** Filter bersama Daftar dan Gantt (BL-41, Screen [010]). */
+export interface ProjectFilter {
+  /** Kata kunci: ID, nama, no. referensi, aplikasi, atau nama PIC. */
+  readonly q?: string;
+  readonly status?: ProjectStatus;
+  /** Menyaring PROJECT yang melibatkan PIC ini; tahapan PIC lain tetap tampil (FR-12-03). */
+  readonly picId?: number;
+  readonly stage?: StageKind;
+  readonly stageStatus?: StageStatusFilter;
+  readonly projectType?: ProjectType;
+  readonly completeness?: 'COMPLETE' | 'INCOMPLETE';
+  /** "Hanya milik saya": menyaring tahapan milik PIC ini. */
+  readonly mineOnlyPicId?: number;
+  /** Pembatasan id project (dipakai filter turunan seperti Tertinggal). */
+  readonly projectIds?: ReadonlyArray<number>;
+}
+
+/** Permintaan pencarian project berhalaman di server. */
+export interface ProjectSearch {
+  readonly filter: ProjectFilter;
+  /** START = estimasi mulai paling awal (Gantt, project tanpa timeline terakhir); NEWEST = terbaru di atas (Daftar). */
+  readonly order: 'START' | 'NEWEST';
+  readonly page: number;
+  readonly pageSize: number;
+  readonly today: IsoDate;
+}
+
+/** Baris daftar Assignment baru bagi seorang PIC (FR-07-02). */
+export interface NewAssignmentRow {
+  readonly projectId: number;
+  readonly projectCode: string;
+  readonly projectName: string;
+  readonly stage: StageKind;
+  readonly estimate: Estimate | null;
+  readonly assignedByLabel: string;
+  readonly assignedAt: Date;
+}
+
+/** Akses baca project untuk Daftar, Gantt, Detail, dan Assignment baru. */
+export interface ProjectQueryRepository {
+  /** Mencari id project menurut filter, urutan, dan halaman; total mengikuti filter. */
+  searchProjectIds(search: ProjectSearch): Promise<{ ids: number[]; total: number }>;
+  /** Jumlah SELURUH project per status, tidak dipengaruhi filter lain (FR-14-02). */
+  countByStatus(): Promise<Record<ProjectStatus, number>>;
+  /** Snapshot banyak project sekaligus, urutan sesuai `ids`. */
+  loadSnapshots(ids: ReadonlyArray<number>): Promise<ProjectSnapshot[]>;
+  /** Snapshot satu project; null bila tidak ada. */
+  loadSnapshot(id: number): Promise<ProjectSnapshot | null>;
+  /** Id project menurut kode `PRJ-nnn`; null bila tidak ada. */
+  findProjectIdByCode(code: string): Promise<number | null>;
+  /** Tahapan Berjalan pada project Berjalan, calon penanda Tertinggal (dihitung di domain). */
+  listRunningStageCandidates(): Promise<Array<{ projectId: number; stage: StageRef }>>;
+  /** Seluruh revisi estimasi semua tahapan sebuah project, terlama di atas. */
+  listRevisionsOfProject(projectId: number): Promise<RevisionRow[]>;
+  /** Daftar Assignment baru (belum dilihat) milik PIC. */
+  listNewAssignments(picId: number): Promise<NewAssignmentRow[]>;
+  /** Menandai seluruh penugasan PIC pada project itu sebagai sudah dilihat; mengembalikan jumlah yang berubah. */
+  markAssignmentsSeen(projectId: number, picId: number, now: Date): Promise<number>;
 }

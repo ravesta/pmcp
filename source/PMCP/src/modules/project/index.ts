@@ -17,13 +17,20 @@ export type {
   UpdateStageStatusInput,
   UpdateStageStatusResult,
 } from './application/stage-use-cases';
+export { getProjectDetail, getProjectFormOptions, listNewAssignments, normalizePaging, PAGE_SIZES, searchProjects } from './application/project-queries';
+export type { ProjectDetail, ProjectFormOptions, ProjectViewMode, SearchProjectsInput, SearchProjectsResult } from './application/project-queries';
+export type { ProjectView, StageProgressView, StageRights, StageView } from './application/view-models';
 export { updateProjectInfo } from './application/update-project-info';
 export type { UpdateProjectInfoInput } from './application/update-project-info';
 export type {
   Assignee,
   CardSourcePort,
   ProjectDeps,
+  NewAssignmentRow,
+  ProjectFilter,
+  ProjectQueryRepository,
   ProjectRepository,
+  StageStatusFilter,
   ProjectSnapshot,
   ReferencePort,
   RevisionRow,
@@ -33,6 +40,9 @@ export type {
 } from './application/ports';
 export { PROJECT_STATUS_LABEL, STAGE_LABEL, STAGE_STATUS_LABEL } from './application/support';
 export type { ProjectType } from './domain/project-rules';
+export type { GanttBar } from './domain/gantt-bar';
+export type { DisplayStatus } from './domain/stage-lateness';
 export type { Estimate, ProjectStatus, StageKind, StageStatus } from './domain/stage-types';
 export { createPrismaProjectRepository } from './infrastructure/prisma-project-repository';
+export { createPrismaProjectQueries } from './infrastructure/prisma-project-queries';
 export { createPrismaCardSource, createPrismaReference } from './infrastructure/prisma-reference-and-cards';

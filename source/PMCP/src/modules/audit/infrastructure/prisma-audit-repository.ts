@@ -60,6 +60,7 @@ export function createPrismaAuditRepository(prisma: PrismaClient): AuditReposito
       const where = {
         ...(query.category ? { category: query.category } : {}),
         ...(query.actorUserId !== undefined ? { actor_user_id: BigInt(query.actorUserId) } : {}),
+        ...(query.projectCode ? { project_code: query.projectCode } : {}),
       };
       const [total, records] = await Promise.all([
         prisma.audit_event.count({ where }),

@@ -53,6 +53,24 @@ export function createPrismaReference(prisma: PrismaClient): ReferencePort {
       const row = await prisma.app_setting.findUnique({ where: { key: REVISION_THRESHOLD_KEY } });
       return row?.int_value ?? 3;
     },
+
+    /** Aplikasi aktif terurut nama. Efek samping: tidak ada (hanya baca). */
+    async listActiveApplications() {
+      const rows = await prisma.affected_application.findMany({ where: { is_active: true }, orderBy: { name: 'asc' } });
+      return rows.map((row) => ({ id: Number(row.id), name: row.name, isActive: row.is_active }));
+    },
+
+    /** PIC aktif terurut nama. Efek samping: tidak ada (hanya baca). */
+    async listActivePics() {
+      const rows = await prisma.pic.findMany({ where: { is_active: true }, orderBy: { name: 'asc' } });
+      return rows.map((row) => ({ id: Number(row.id), name: row.name, stage: row.stage as StageKind, isActive: row.is_active }));
+    },
+
+    /** Kategori alasan revisi aktif terurut id. Efek samping: tidak ada (hanya baca). */
+    async listActiveRevisionCategories() {
+      const rows = await prisma.revision_category.findMany({ where: { is_active: true }, orderBy: { id: 'asc' } });
+      return rows.map((row) => ({ id: Number(row.id), name: row.name, isActive: row.is_active }));
+    },
   };
 }
 

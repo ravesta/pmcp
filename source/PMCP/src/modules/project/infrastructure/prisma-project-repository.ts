@@ -179,8 +179,9 @@ export function toProjectSnapshot(row: ProjectRow): ProjectSnapshot {
  * Efek samping: tidak ada (fungsi murni).
  * Rujukan: FR-13-01, FR-13-05 butir 2 (kartu asal dicatat).
  */
-function toRevisionRow(row: {
+export function toRevisionRow(row: {
   id: bigint;
+  stage_id: bigint;
   seq: number;
   prev_start: Date;
   prev_end: Date;
@@ -195,6 +196,7 @@ function toRevisionRow(row: {
 }): RevisionRow {
   return {
     id: Number(row.id),
+    stageId: Number(row.stage_id),
     seq: row.seq,
     previous: { start: fromDbDate(row.prev_start) as IsoDate, end: fromDbDate(row.prev_end) as IsoDate },
     next: { start: fromDbDate(row.new_start) as IsoDate, end: fromDbDate(row.new_end) as IsoDate },
@@ -209,7 +211,7 @@ function toRevisionRow(row: {
 }
 
 /** Pemilihan relasi untuk membaca revisi. */
-const REVISION_INCLUDE = {
+export const REVISION_INCLUDE = {
   app_user: { include: { pic: true } },
   stage_revision_source: { include: { card: { select: { code: true } } } },
 } as const;
