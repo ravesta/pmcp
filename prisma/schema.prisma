@@ -1,0 +1,419 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model activity_category {
+  id         BigInt   @id @default(autoincrement())
+  name       String   @db.VarChar(60)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model affected_application {
+  id                  BigInt                @id @default(autoincrement())
+  name                String                @db.VarChar(50)
+  is_active           Boolean               @default(true)
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  project_application project_application[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model app_setting {
+  key       String @id @db.VarChar(40)
+  int_value Int
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model app_user {
+  id                                                         BigInt                @id @default(autoincrement())
+  username                                                   String                @unique @db.VarChar(30)
+  role                                                       user_role_t
+  pic_id                                                     BigInt?               @unique
+  password_hash                                              String
+  must_change_password                                       Boolean               @default(true)
+  is_active                                                  Boolean               @default(true)
+  password_changed_at                                        DateTime?             @db.Timestamptz(6)
+  created_at                                                 DateTime              @default(now()) @db.Timestamptz(6)
+  pic                                                        pic?                  @relation(fields: [pic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  audit_event                                                audit_event[]
+  card_progress_event                                        card_progress_event[]
+  card_reschedule                                            card_reschedule[]
+  project                                                    project[]
+  project_stage                                              project_stage[]
+  session                                                    session[]
+  stage_assignment                                           stage_assignment[]
+  stage_hold_history_stage_hold_history_held_byToapp_user    stage_hold_history[]  @relation("stage_hold_history_held_byToapp_user")
+  stage_hold_history_stage_hold_history_resumed_byToapp_user stage_hold_history[]  @relation("stage_hold_history_resumed_byToapp_user")
+  stage_revision                                             stage_revision[]
+}
+
+model audit_event {
+  id            BigInt           @id @default(autoincrement())
+  occurred_at   DateTime         @default(now()) @db.Timestamptz(6)
+  actor_user_id BigInt?
+  actor_label   String           @db.VarChar(120)
+  category      audit_category_t
+  action        String           @db.VarChar(60)
+  project_code  String?          @db.VarChar(12)
+  entity_type   String           @db.VarChar(30)
+  entity_id     String?          @db.VarChar(40)
+  summary       String           @db.VarChar(300)
+  changes       Json             @default("[]")
+  app_user      app_user?        @relation(fields: [actor_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([actor_user_id, occurred_at(sort: Desc)], map: "audit_event_actor_idx")
+  @@index([category, occurred_at(sort: Desc)], map: "audit_event_category_idx")
+  @@index([project_code, occurred_at(sort: Desc)], map: "audit_event_project_idx")
+  @@index([occurred_at(sort: Desc)], map: "audit_event_time_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model card {
+  id                    BigInt                  @id @default(autoincrement())
+  code                  String                  @unique @default(dbgenerated("('KB-'::text || lpad((nextval('card_code_seq'::regclass))::text, 5, '0'::text))")) @db.VarChar(8)
+  kind                  card_kind_t
+  owner_pic_id          BigInt
+  project_id            BigInt?
+  stage                 stage_t?
+  step_name             String?                 @db.VarChar(60)
+  category_name         String?                 @db.VarChar(60)
+  title                 String                  @db.VarChar(120)
+  board_column          card_column_t           @default(PLANNED)
+  progress              Int                     @default(0) @db.SmallInt
+  progress_needs_input  Boolean                 @default(false)
+  plan_start            DateTime                @db.Date
+  plan_end              DateTime                @db.Date
+  plan_baseline_start   DateTime                @db.Date
+  plan_baseline_end     DateTime                @db.Date
+  est_minutes           Int?
+  is_adhoc              Boolean                 @default(false)
+  done_on               DateTime?               @db.Date
+  cancelled_at          DateTime?               @db.Timestamptz(6)
+  cancel_reason         String?                 @db.VarChar(200)
+  extends_stage         Boolean                 @default(false)
+  extension_note        String?                 @db.VarChar(300)
+  version               Int                     @default(1)
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  pic                   pic                     @relation(fields: [owner_pic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project               project?                @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  card_progress_event   card_progress_event[]
+  card_reschedule       card_reschedule[]
+  stage_revision_source stage_revision_source[]
+  work_log              work_log[]
+
+  @@unique([id, owner_pic_id], map: "card_id_owner_uq")
+  @@index([extends_stage], where: raw("extends_stage"))
+  @@index([owner_pic_id, board_column], map: "card_owner_column_idx")
+  @@index([plan_end])
+  @@index([plan_start])
+  @@index([project_id, stage], map: "card_project_stage_idx")
+}
+
+model card_progress_event {
+  id         BigInt   @id @default(autoincrement())
+  card_id    BigInt
+  old_value  Int      @db.SmallInt
+  new_value  Int      @db.SmallInt
+  source     String   @db.VarChar(30)
+  created_by BigInt
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  card       card     @relation(fields: [card_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  app_user   app_user @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([card_id], map: "card_progress_event_card_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model card_reschedule {
+  id          BigInt   @id @default(autoincrement())
+  card_id     BigInt
+  old_start   DateTime @db.Date
+  old_end     DateTime @db.Date
+  new_start   DateTime @db.Date
+  new_end     DateTime @db.Date
+  reason_name String   @db.VarChar(60)
+  note        String?  @db.VarChar(200)
+  created_by  BigInt
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  card        card     @relation(fields: [card_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  app_user    app_user @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([card_id], map: "card_reschedule_card_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model login_throttle {
+  scope        String    @db.VarChar(4)
+  key          String    @db.VarChar(100)
+  failures     Int       @default(0)
+  locked_until DateTime? @db.Timestamptz(6)
+  updated_at   DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@id([scope, key])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pic {
+  id               BigInt             @id @default(autoincrement())
+  name             String             @db.VarChar(100)
+  stage            stage_t
+  is_active        Boolean            @default(true)
+  created_at       DateTime           @default(now()) @db.Timestamptz(6)
+  app_user         app_user?
+  card             card[]
+  stage_assignment stage_assignment[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model project {
+  id                  BigInt                @id @default(autoincrement())
+  code                String                @unique @default(dbgenerated("('PRJ-'::text || lpad((nextval('project_code_seq'::regclass))::text, 3, '0'::text))")) @db.VarChar(12)
+  name                String                @db.VarChar(100)
+  reference_no        String?               @db.VarChar(50)
+  project_type        project_type_t?
+  business_owner      String?               @db.VarChar(100)
+  department          String?               @db.VarChar(100)
+  request_date        DateTime?             @db.Date
+  description         String?               @db.VarChar(1000)
+  status              project_status_t      @default(BACKLOG)
+  status_reason       String?               @db.VarChar(200)
+  version             Int                   @default(1)
+  created_by          BigInt
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime              @default(now()) @db.Timestamptz(6)
+  card                card[]
+  app_user            app_user              @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_application project_application[]
+  project_stage       project_stage[]
+
+  @@index([reference_no], map: "project_reference_idx")
+  @@index([status])
+}
+
+model project_application {
+  project_id           BigInt
+  application_id       BigInt
+  affected_application affected_application @relation(fields: [application_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project              project              @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([project_id, application_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model project_stage {
+  id                   BigInt               @id @default(autoincrement())
+  project_id           BigInt
+  stage                stage_t
+  status               stage_status_t       @default(NOT_STARTED)
+  est_start            DateTime?            @db.Date
+  est_end              DateTime?            @db.Date
+  baseline_start       DateTime?            @db.Date
+  baseline_end         DateTime?            @db.Date
+  actual_start         DateTime?            @db.Date
+  actual_end           DateTime?            @db.Date
+  hold_since           DateTime?            @db.Date
+  hold_reason          String?              @db.VarChar(300)
+  manual_progress      Int?                 @db.SmallInt
+  manual_progress_note String?              @db.VarChar(300)
+  manual_progress_by   BigInt?
+  manual_progress_at   DateTime?            @db.Timestamptz(6)
+  version              Int                  @default(1)
+  app_user             app_user?            @relation(fields: [manual_progress_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project              project              @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  stage_assignment     stage_assignment[]
+  stage_hold_history   stage_hold_history[]
+  stage_revision       stage_revision[]
+
+  @@unique([project_id, stage], map: "project_stage_uq")
+  @@index([est_end])
+  @@index([est_start])
+  @@index([project_id], map: "project_stage_project_idx")
+  @@index([status])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model reschedule_reason {
+  id         BigInt   @id @default(autoincrement())
+  name       String   @db.VarChar(60)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model revision_category {
+  id         BigInt   @id @default(autoincrement())
+  name       String   @db.VarChar(50)
+  is_active  Boolean  @default(true)
+  system_key String?  @unique @db.VarChar(20)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model schema_migration {
+  name       String   @id
+  applied_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model session {
+  token_hash   Bytes     @id
+  user_id      BigInt
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  last_seen_at DateTime  @default(now()) @db.Timestamptz(6)
+  expires_at   DateTime  @db.Timestamptz(6)
+  revoked_at   DateTime? @db.Timestamptz(6)
+  app_user     app_user  @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([user_id], map: "session_user_idx")
+}
+
+model stage_assignment {
+  stage_id      BigInt
+  pic_id        BigInt
+  assigned_at   DateTime      @default(now()) @db.Timestamptz(6)
+  assigned_by   BigInt
+  seen_at       DateTime?     @db.Timestamptz(6)
+  app_user      app_user      @relation(fields: [assigned_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pic           pic           @relation(fields: [pic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_stage project_stage @relation(fields: [stage_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([stage_id, pic_id])
+  @@index([pic_id], map: "stage_assignment_pic_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model stage_hold_history {
+  id                                               BigInt        @id @default(autoincrement())
+  stage_id                                         BigInt
+  hold_since                                       DateTime      @db.Date
+  resumed_on                                       DateTime      @db.Date
+  reason                                           String        @db.VarChar(300)
+  held_by                                          BigInt
+  resumed_by                                       BigInt
+  app_user_stage_hold_history_held_byToapp_user    app_user      @relation("stage_hold_history_held_byToapp_user", fields: [held_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  app_user_stage_hold_history_resumed_byToapp_user app_user      @relation("stage_hold_history_resumed_byToapp_user", fields: [resumed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_stage                                    project_stage @relation(fields: [stage_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([stage_id], map: "stage_hold_history_stage_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model stage_revision {
+  id                    BigInt                  @id @default(autoincrement())
+  stage_id              BigInt
+  seq                   Int
+  prev_start            DateTime                @db.Date
+  prev_end              DateTime                @db.Date
+  new_start             DateTime                @db.Date
+  new_end               DateTime                @db.Date
+  category_name         String                  @db.VarChar(50)
+  note                  String                  @db.VarChar(2000)
+  created_by            BigInt
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                @default(now()) @db.Timestamptz(6)
+  app_user              app_user                @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project_stage         project_stage           @relation(fields: [stage_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  stage_revision_source stage_revision_source[]
+
+  @@unique([stage_id, seq], map: "stage_revision_uq")
+}
+
+model stage_revision_source {
+  revision_id    BigInt
+  card_id        BigInt
+  card           card           @relation(fields: [card_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  stage_revision stage_revision @relation(fields: [revision_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([revision_id, card_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model stage_step {
+  id         BigInt   @id @default(autoincrement())
+  stage      stage_t
+  name       String   @db.VarChar(60)
+  sort_order Int
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([stage, sort_order], map: "stage_step_order_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model work_log {
+  id           BigInt   @id @default(autoincrement())
+  card_id      BigInt
+  owner_pic_id BigInt
+  work_date    DateTime @db.Date
+  start_time   DateTime @db.Time(0)
+  end_time     DateTime @db.Time(0)
+  step_name    String?  @db.VarChar(60)
+  description  String   @db.VarChar(300)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  card         card     @relation(fields: [card_id, owner_pic_id], references: [id, owner_pic_id], onDelete: NoAction, onUpdate: NoAction, map: "work_log_card_owner_fk")
+
+  @@index([card_id], map: "work_log_card_idx")
+  @@index([owner_pic_id, work_date, start_time], map: "work_log_owner_date_idx")
+}
+
+enum audit_category_t {
+  PROJECT
+  CARD
+  MASTER
+  ACCOUNT
+  SECURITY
+}
+
+enum card_column_t {
+  PLANNED
+  IN_PROGRESS
+  DONE
+}
+
+enum card_kind_t {
+  PROJECT
+  ACTIVITY
+}
+
+enum project_status_t {
+  BACKLOG
+  RUNNING
+  DEFERRED
+  CANCELLED
+  COMPLETED
+}
+
+enum project_type_t {
+  NEW
+  CHANGE_REQUEST
+}
+
+enum stage_status_t {
+  NOT_STARTED
+  RUNNING
+  HELD
+  DONE
+}
+
+enum stage_t {
+  BA
+  DEV
+  QA
+}
+
+enum user_role_t {
+  MANAGER
+  PIC
+}
