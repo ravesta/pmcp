@@ -1,98 +1,94 @@
-import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
+import type { CSSProperties } from 'react';
 import type { ProjectView } from '@/modules/project';
-import { ToneChip } from '@/ui/components/tone-chip';
-import { displayStatusBadge, formatAssignees, PROJECT_STATUS_TEXT, projectStatusTone } from '@/ui/format/project-labels';
+import { dayOfWeek } from '@/shared/calendar';
+import { formatDisplayDate } from '@/shared/iso-date';
+import { PROJECT_STATUS_TEXT, STAGE_FULL_TEXT } from '@/ui/format/project-labels';
 import type { Timeline } from '@/ui/gantt/timeline';
-import { GanttStageBar, TRACK_HEIGHT } from './gantt-stage-bar';
+import styles from './gantt.module.css';
+import { EMPTY_ROW_HEIGHT, GanttStageBar, ROW_HEIGHT } from './gantt-stage-bar';
 
-/** Lebar kolom nama yang tetap terlihat saat menggulir mendatar (piksel). */
-const NAME_COLUMN = 250;
+/** Lebar kolom nama (piksel), sama dengan kelas gl pada mockup. */
+const NAME_COLUMN = 200;
 
 /** Properti Gantt. */
 interface GanttChartProps {
   readonly projects: ReadonlyArray<ProjectView>;
   readonly timeline: Timeline;
   readonly showLayers: boolean;
+  /** Pesan bila tidak ada project pada periode dan filter ini. */
+  readonly emptyMessage?: string;
 }
 
 /**
- * Jalur latar sebuah baris: arsiran akhir pekan dan garis hari ini, dipakai oleh semua baris agar sejajar.
- * Masukan: skala waktu. Keluaran: lapisan latar absolut.
- * Efek samping: tidak ada (komponen murni).
- * Rujukan: FR-12-01 butir 4 (garis hari ini, akhir pekan diarsir).
+ * Menyusun latar jalur (garis Senin dan arsiran akhir pekan) sebagai gradasi CSS sehingga tidak perlu ratusan elemen
+ * per baris (menjaga target muat 3 detik).
+ * Masukan: skala waktu dan hari dalam pekan tanggal awal (0 = Minggu). Keluaran: gaya inline jalur.
+ * Efek samping: tidak ada (fungsi murni).
+ * Rujukan: FR-12-01 butir 4 (akhir pekan diarsir), NFR-08, mockup v0.2 (kelas gwe dan gtk).
  */
-function TrackBackground({ timeline }: { readonly timeline: Timeline }) {
-  return (
-    <Box aria-hidden sx={{ position: 'absolute', inset: 0 }}>
-      {timeline.weekends.map((span, index) => (
-        <Box key={index} sx={{ position: 'absolute', top: 0, bottom: 0, left: `${span.leftPercent}%`, width: `${span.widthPercent}%`, bgcolor: 'action.hover' }} />
-      ))}
-      {timeline.todayPercent !== null ? <Box sx={{ position: 'absolute', top: 0, bottom: 0, left: `${timeline.todayPercent}%`, width: 2, bgcolor: 'error.main', opacity: 0.8 }} /> : null}
-    </Box>
-  );
+function trackStyle(timeline: Timeline, startWeekday: number): CSSProperties {
+  const px = timeline.pxPerDay;
+  const base: CSSProperties = { width: timeline.widthPx };
+  if (timeline.zoom === 'MONTH') return base;
+  const firstSaturday = (6 - startWeekday + 7) % 7;
+  const firstMonday = (1 - startWeekday + 7) % 7;
+  return {
+    ...base,
+    backgroundImage: `linear-gradient(to right, var(--soft) 0 ${2 * px}px, transparent ${2 * px}px), linear-gradient(to right, var(--line) 0 1px, transparent 1px)`,
+    backgroundSize: `${7 * px}px 100%, ${7 * px}px 100%`,
+    backgroundPosition: `${firstSaturday * px}px 0, ${firstMonday * px}px 0`,
+    backgroundRepeat: 'repeat-x, repeat-x',
+  };
 }
 
 /**
- * Gantt tahapan semua project: kelompok per project (nama tertaut, ID, status, tiga baris tahapan dengan PIC dan
- * progres), header tanggal sesuai zoom, garis hari ini, dan akhir pekan diarsir. Dapat digulir; kolom nama tetap.
- * Masukan: project halaman ini, skala waktu, dan penanda lapisan. Keluaran: kartu Gantt.
- * Efek samping: tidak ada (komponen murni; kolom tahapan menautkan ke Detail Project).
- * Rujukan: FR-12-01, FR-12-02, FR-12-03, BL-17, handoff UX/UI §8 (kolom nama tetap) dan §9.
+ * Gantt tahapan semua project seperti mockup v0.2: header tanggal menempel di atas, kolom nama menempel di kiri,
+ * baris kelompok per project (nama tertaut, ID, status berwarna) dengan tiga baris tahapan, garis hari ini, dan akhir
+ * pekan diarsir. Dapat digulir sendiri.
+ * Masukan: project halaman ini, skala waktu, penanda lapisan, dan pesan kosong. Keluaran: grafik Gantt.
+ * Efek samping: tidak ada (komponen murni; nama project dan bar berupa tautan ke Detail Project).
+ * Rujukan: FR-12-01, FR-12-02, FR-12-03, BL-17, handoff UX/UI §8 (kolom nama tetap) dan §9, mockup v0.2 (ganttHtml).
  */
-export function GanttChart({ projects, timeline, showLayers }: GanttChartProps) {
+export function GanttChart({ projects, timeline, showLayers, emptyMessage = 'Tidak ada tahapan pada periode dan filter ini.' }: GanttChartProps) {
+  if (projects.length === 0) return <div className={styles.empty}>{emptyMessage}</div>;
+  const startWeekday = dayOfWeek(timeline.start);
+  const track = trackStyle(timeline, startWeekday);
+  const today = timeline.todayPx === null ? null : <div className={styles.gtd} style={{ left: timeline.todayPx }} />;
+
   return (
-    <Paper variant="outlined" sx={{ overflow: 'auto', maxHeight: '70vh' }}>
-      <Box sx={{ minWidth: NAME_COLUMN + timeline.minWidthPx }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: `${NAME_COLUMN}px 1fr`, position: 'sticky', top: 0, zIndex: 3, bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
-          <Box sx={{ position: 'sticky', left: 0, zIndex: 4, bgcolor: 'background.paper', p: 1, borderRight: 1, borderColor: 'divider' }}>
-            <Typography variant="caption" color="text.secondary">Project dan tahapan</Typography>
-          </Box>
-          <Box sx={{ position: 'relative', height: 28 }} aria-hidden>
-            {timeline.columns.map((column) => (
-              <Typography key={column.key} variant="caption" sx={{ position: 'absolute', left: `${column.leftPercent}%`, width: `${column.widthPercent}%`, textAlign: 'center', overflow: 'hidden', lineHeight: '28px', borderLeft: 1, borderColor: 'divider' }}>
-                {column.label}
-              </Typography>
-            ))}
-          </Box>
-        </Box>
+    <div className={styles.gt}>
+      <div style={{ width: timeline.widthPx + NAME_COLUMN }}>
+        <div className={`${styles.gr} ${styles.gh}`}>
+          <div className={styles.gl}>{formatDisplayDate(timeline.start)} - {formatDisplayDate(timeline.end)}</div>
+          <div className={styles.gc} style={{ width: timeline.widthPx, height: 40 }} aria-hidden>
+            {timeline.dayNumbers.map((tick) => <div key={tick.key} className={styles.dayno} style={{ left: tick.leftPx, width: timeline.pxPerDay }}>{tick.label}</div>)}
+            {timeline.ticks.map((tick) => <div key={tick.key} className={styles.tick} style={{ left: tick.leftPx }}>{tick.label}</div>)}
+          </div>
+        </div>
 
         {projects.map((project) => (
-          <Box key={project.id} component="section" aria-label={`${project.code} ${project.name}`} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: `${NAME_COLUMN}px 1fr`, bgcolor: 'action.hover' }}>
-              <Box sx={{ position: 'sticky', left: 0, zIndex: 2, bgcolor: 'background.default', p: 1, borderRight: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                <Link href={`/project/${project.code}`} style={{ fontWeight: 600 }}>{project.name}</Link>
-                <Typography variant="caption" color="text.secondary">{project.code}</Typography>
-                <ToneChip text={PROJECT_STATUS_TEXT[project.status]} tone={projectStatusTone(project.status)} />
-              </Box>
-              <Box />
-            </Box>
-            {project.stages.map((stage) => {
-              const badge = displayStatusBadge(stage.display);
-              return (
-                <Box key={stage.stageId} sx={{ display: 'grid', gridTemplateColumns: `${NAME_COLUMN}px 1fr`, minHeight: TRACK_HEIGHT }}>
-                  <Box sx={{ position: 'sticky', left: 0, zIndex: 2, bgcolor: stage.isMine ? 'action.selected' : 'background.paper', px: 1, py: 0.5, borderRight: 1, borderColor: 'divider' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      <Link href={`/project/${project.code}#tahap-${stage.kind}`}>{stage.label}</Link>
-                      {' '}
-                      <Typography component="span" variant="caption" color="text.secondary">{formatAssignees(stage.assignees)}</Typography>
-                    </Typography>
-                    <Typography variant="caption" color={badge.tone === 'late' ? 'error' : 'text.secondary'}>
-                      {badge.text} · {stage.progress.effective}%{stage.progress.lagging ? ' · Tertinggal' : ''}{stage.revisionAtLimit ? ' · Revisi berulang' : ''}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ position: 'relative', height: TRACK_HEIGHT }}>
-                    <TrackBackground timeline={timeline} />
-                    <GanttStageBar projectName={project.name} stage={stage} timeline={timeline} showLayers={showLayers} />
-                  </Box>
-                </Box>
-              );
-            })}
-          </Box>
+          <section key={project.id} aria-label={`${project.code} ${project.name}`}>
+            <div className={`${styles.gr} ${styles.ph}`}>
+              <div className={styles.gl}>
+                <Link href={`/project/${project.code}`} className={styles.name} title="Buka detail project">{project.name}</Link>
+                <span className={styles.code}>({project.code})</span>
+                <span className={`${styles.pst} ${styles[project.status]}`}>- {PROJECT_STATUS_TEXT[project.status]}</span>
+              </div>
+              <div className={styles.gc} style={track}>{today}</div>
+            </div>
+            {project.stages.map((stage) => (
+              <div key={stage.stageId} className={styles.gr}>
+                <div className={styles.gl}>{STAGE_FULL_TEXT[stage.kind]}</div>
+                <div className={styles.gc} style={{ ...track, height: stage.bar ? ROW_HEIGHT : EMPTY_ROW_HEIGHT }}>
+                  <GanttStageBar projectCode={project.code} projectName={project.name} stage={stage} timeline={timeline} showLayers={showLayers} />
+                  {today}
+                </div>
+              </div>
+            ))}
+          </section>
         ))}
-      </Box>
-    </Paper>
+      </div>
+    </div>
   );
 }

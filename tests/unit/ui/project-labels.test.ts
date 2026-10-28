@@ -53,8 +53,10 @@ describe('format tanggal dan teks bantu', () => {
   });
 
   it('nada status project', () => {
+    expect(projectStatusTone('BACKLOG')).toBe('backlog');
     expect(projectStatusTone('RUNNING')).toBe('info');
     expect(projectStatusTone('COMPLETED')).toBe('ok');
-    expect(projectStatusTone('DEFERRED')).toBe('hold');
+    expect(projectStatusTone('DEFERRED')).toBe('warn');
+    expect(projectStatusTone('CANCELLED')).toBe('cancel');
   });
 });

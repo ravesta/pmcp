@@ -17,9 +17,11 @@ export type {
   UpdateStageStatusInput,
   UpdateStageStatusResult,
 } from './application/stage-use-cases';
-export { getProjectDetail, getProjectFormOptions, listNewAssignments, normalizePaging, PAGE_SIZES, searchProjects } from './application/project-queries';
+export { getProjectDetail, getProjectFormOptions, listNewAssignments, listProjectOptions, normalizePaging, PAGE_SIZES, searchProjects } from './application/project-queries';
 export type { ProjectDetail, ProjectFormOptions, ProjectViewMode, SearchProjectsInput, SearchProjectsResult } from './application/project-queries';
 export type { ProjectView, StageProgressView, StageRights, StageView } from './application/view-models';
+export { updateStage } from './application/update-stage';
+export type { UpdateStageInput, UpdateStageResult } from './application/update-stage';
 export { updateProjectInfo } from './application/update-project-info';
 export type { UpdateProjectInfoInput } from './application/update-project-info';
 export type {

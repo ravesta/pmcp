@@ -43,6 +43,18 @@ function single(raw: RawSearchParams, name: string): string | undefined {
 }
 
 /**
+ * Mengambil semua nilai bilangan bulat dari parameter berulang (mis. `proyek=3&proyek=5`).
+ * Masukan: parameter mentah dan nama. Keluaran: daftar bilangan bulat tanpa duplikat, dibatasi jumlahnya.
+ * Efek samping: tidak ada (fungsi murni).
+ * Rujukan: Screen [010] field 2 (Nama project pilihan ganda), Security Design §7.
+ */
+function integers(raw: RawSearchParams, name: string): number[] {
+  const value = raw[name];
+  const list = Array.isArray(value) ? value : value === undefined ? [] : [value];
+  return [...new Set(list.filter((item) => /^\d{1,9}$/.test(item)).map(Number))].slice(0, 50);
+}
+
+/**
  * Memilih nilai dari daftar putih; selain itu undefined.
  * Masukan: teks dan daftar nilai yang diizinkan. Keluaran: nilai yang diizinkan atau undefined.
  * Efek samping: tidak ada (fungsi murni).
@@ -73,7 +85,7 @@ export function parseProjectParams(raw: RawSearchParams, actorPicId: number | nu
   const picRaw = single(raw, 'pic');
   const mineOnly = actorPicId !== null && single(raw, 'milik') === '1';
   const stageStatus = oneOf(single(raw, 'sts'), STAGE_STATUSES);
-  const completeness = oneOf(single(raw, 'lengkap'), ['COMPLETE', 'INCOMPLETE'] as const);
+  const completeness = oneOf(single(raw, 'lengkap'), ['COMPLETE', 'INCOMPLETE', 'NO_PIC', 'NO_TIMELINE'] as const);
   const projectType = oneOf(single(raw, 'jenis'), ['NEW', 'CHANGE_REQUEST'] as const);
   const filter: ProjectFilter = {
     ...(q ? { q } : {}),
@@ -84,6 +96,7 @@ export function parseProjectParams(raw: RawSearchParams, actorPicId: number | nu
     ...(projectType ? { projectType } : {}),
     ...(completeness ? { completeness } : {}),
     ...(mineOnly && actorPicId !== null ? { mineOnlyPicId: actorPicId } : {}),
+    ...(integers(raw, 'proyek').length > 0 ? { projectIds: integers(raw, 'proyek') } : {}),
   };
   return {
     mode: single(raw, 'v') === 'daftar' ? 'LIST' : 'GANTT',
@@ -116,6 +129,7 @@ export function buildProjectHref(params: ProjectPageParams, overrides: Partial<P
   if (filter.stageStatus && filter.stageStatus !== 'ALL') query.set('sts', filter.stageStatus);
   if (filter.projectType) query.set('jenis', filter.projectType);
   if (filter.completeness) query.set('lengkap', filter.completeness);
+  for (const id of filter.projectIds ?? []) query.append('proyek', String(id));
   if (next.mineOnly) query.set('milik', '1');
   if (next.page > 1) query.set('hal', String(next.page));
   if (next.pageSize > 0) query.set('per', String(next.pageSize));
@@ -139,5 +153,5 @@ export function buildProjectHref(params: ProjectPageParams, overrides: Partial<P
  */
 export function activeFilterCount(params: ProjectPageParams): number {
   const { filter } = params;
-  return [filter.q, filter.status, filter.picId, filter.stage, filter.stageStatus, filter.projectType, filter.completeness].filter((v) => v !== undefined).length + (params.mineOnly ? 1 : 0);
+  return [filter.q, filter.status, filter.picId, filter.stage, filter.stageStatus, filter.projectType, filter.completeness].filter((v) => v !== undefined).length + (filter.projectIds?.length ? 1 : 0) + (params.mineOnly ? 1 : 0);
 }

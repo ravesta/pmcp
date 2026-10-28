@@ -8,6 +8,8 @@ import {
   MAX_WINDOW_MONTHS,
   buildTimeline,
   defaultWindow,
+  monthLabel,
+  monthOptions,
   normalizeWindow,
   parseMonthKey,
   parseZoom,
@@ -43,54 +45,57 @@ describe('jendela bulan', () => {
   });
 });
 
+describe('opsi bulan dan label', () => {
+  it('menyediakan tiga bulan ke belakang sampai enam bulan ke depan dengan label singkat', () => {
+    const options = monthOptions(TODAY);
+    expect(options).toHaveLength(10);
+    expect(options[0]).toEqual({ value: '2026-07', label: 'Jul 2026' });
+    expect(options[3]).toEqual({ value: '2026-10', label: 'Okt 2026' });
+    expect(options[9]).toEqual({ value: '2027-04', label: 'Apr 2027' });
+    expect(monthLabel('2026-10')).toBe('Okt 2026');
+  });
+});
+
 describe('buildTimeline', () => {
   const timeline = buildTimeline({ from: '2026-10', to: '2026-10' }, 'DAY', TODAY);
 
-  it('mencakup seluruh bulan dan menghitung jumlah hari', () => {
-    expect(timeline).toMatchObject({ start: '2026-10-01', end: '2026-10-31', totalDays: 31 });
-    expect(timeline.columns).toHaveLength(31);
+  it('mencakup seluruh bulan; lebar jalur = hari x piksel per hari (24 untuk zoom Hari)', () => {
+    expect(timeline).toMatchObject({ start: '2026-10-01', end: '2026-10-31', totalDays: 31, pxPerDay: 24, widthPx: 31 * 24 });
+    expect(timeline.dayNumbers).toHaveLength(31);
+    expect(timeline.dayNumbers[27]).toMatchObject({ label: '28', leftPx: 27 * 24 });
+  });
+
+  it('penanda atas berupa Senin dd/mm (zoom Hari dan Minggu) dan awal bulan (zoom Bulan)', () => {
+    expect(timeline.ticks.map((t) => t.label)).toEqual(['05/10', '12/10', '19/10', '26/10']);
+    const month = buildTimeline({ from: '2026-10', to: '2026-12' }, 'MONTH', TODAY);
+    expect(month.ticks.map((t) => t.label)).toEqual(['Okt 2026', 'Nov 2026', 'Des 2026']);
+    expect(month.dayNumbers).toEqual([]);
+    expect(month.pxPerDay).toBe(4);
+    expect(buildTimeline({ from: '2026-10', to: '2026-10' }, 'WEEK', TODAY).pxPerDay).toBe(10);
   });
 
   it('garis hari ini berada di tengah hari ke-28 dan hilang bila di luar jendela', () => {
-    expect(timeline.todayPercent).toBeCloseTo(((27 + 0.5) / 31) * 100, 5);
-    expect(buildTimeline({ from: '2026-11', to: '2026-11' }, 'DAY', TODAY).todayPercent).toBeNull();
+    expect(timeline.todayPx).toBe(27 * 24 + 12);
+    expect(buildTimeline({ from: '2026-11', to: '2026-11' }, 'DAY', TODAY).todayPx).toBeNull();
   });
 
-  it('akhir pekan diarsir sepasang Sabtu-Minggu dan tidak ada pada zoom bulan', () => {
-    expect(timeline.weekends).toHaveLength(5);
-    expect(timeline.weekends[0]?.leftPercent).toBeCloseTo((2 / 31) * 100, 5);
-    expect(timeline.weekends[0]?.widthPercent).toBeCloseTo((2 / 31) * 100, 5);
+  it('akhir pekan diarsir per hari Sabtu dan Minggu dan tidak ada pada zoom Bulan', () => {
+    // Oktober 2026: Sabtu-Minggu = 3-4, 10-11, 17-18, 24-25, 31
+    expect(timeline.weekends).toHaveLength(9);
+    expect(timeline.weekends[0]).toEqual({ leftPx: 2 * 24, widthPx: 24 });
     expect(buildTimeline({ from: '2026-10', to: '2026-10' }, 'MONTH', TODAY).weekends).toEqual([]);
-  });
-
-  it('kolom minggu dimulai Senin dan kolom bulan menamai bulan', () => {
-    const weeks = buildTimeline({ from: '2026-10', to: '2026-10' }, 'WEEK', TODAY).columns;
-    expect(weeks[0]?.label).toBe('28/09');
-    const months = buildTimeline({ from: '2026-10', to: '2026-12' }, 'MONTH', TODAY).columns;
-    expect(months.map((c) => c.label)).toEqual(['Okt 2026', 'Nov 2026', 'Des 2026']);
-    expect(months.reduce((sum, c) => sum + c.widthPercent, 0)).toBeCloseTo(100, 5);
-  });
-
-  it('lebar minimum jalur mengikuti zoom', () => {
-    const day = buildTimeline({ from: '2026-10', to: '2026-12' }, 'DAY', TODAY).minWidthPx;
-    const week = buildTimeline({ from: '2026-10', to: '2026-12' }, 'WEEK', TODAY).minWidthPx;
-    expect(day).toBeGreaterThan(week);
   });
 });
 
 describe('placeRange', () => {
   const timeline = buildTimeline({ from: '2026-10', to: '2026-10' }, 'DAY', TODAY);
 
-  it('menghitung posisi dan lebar sebuah rentang inklusif', () => {
-    const span = placeRange(timeline, { start: d('2026-10-19'), end: d('2026-10-23') });
-    expect(span?.leftPercent).toBeCloseTo((18 / 31) * 100, 5);
-    expect(span?.widthPercent).toBeCloseTo((5 / 31) * 100, 5);
+  it('menghitung posisi dan lebar rentang inklusif dalam piksel', () => {
+    expect(placeRange(timeline, { start: d('2026-10-19'), end: d('2026-10-23') })).toEqual({ leftPx: 18 * 24, widthPx: 5 * 24 });
   });
 
   it('memotong rentang yang melewati jendela dan menolak yang di luar', () => {
-    const clipped = placeRange(timeline, { start: d('2026-09-20'), end: d('2026-10-03') });
-    expect(clipped?.leftPercent).toBe(0);
-    expect(clipped?.widthPercent).toBeCloseTo((3 / 31) * 100, 5);
+    expect(placeRange(timeline, { start: d('2026-09-20'), end: d('2026-10-03') })).toEqual({ leftPx: 0, widthPx: 3 * 24 });
     expect(placeRange(timeline, { start: d('2026-11-02'), end: d('2026-11-06') })).toBeNull();
     expect(placeRange(timeline, { start: d('2026-09-01'), end: d('2026-09-30') })).toBeNull();
   });

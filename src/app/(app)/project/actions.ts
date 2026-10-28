@@ -4,15 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import {
   createProject,
-  reviseStageEstimate,
-  setManualProgress,
   STAGE_ORDER,
   updateProjectInfo,
-  updateStagePlanning,
-  updateStageStatus,
+  updateStage,
   type ProjectInfoInput,
   type StageKind,
   type StageStatus,
+  type UpdateStageInput,
 } from '@/modules/project';
 import { getContainer } from '@/platform/container';
 import { MESSAGES } from '@/platform/messages';
@@ -96,84 +94,83 @@ export async function updateProjectInfoAction(_previous: ActionState, formData: 
 }
 
 /**
- * Aksi tahapan pada dialog Perbarui Tahapan. Satu pintu dengan `intent`: `planning` (PIC dan timeline), `status`,
- * `progress` (progres manual), atau `revise` (revisi estimasi).
- * Masukan: state sebelumnya dan FormData (intent, id tahapan, versi, dan isian bagian itu). Keluaran: state hasil.
- * Efek samping: menjalankan use case tahapan yang sesuai (menulis tahapan dan audit) lalu me-refresh halaman Project.
- * Hak akses dicek di server oleh tiap use case.
- * Rujukan: Screen [016], FR-03-01, FR-05-01, FR-05-02, FR-13-01.
+ * Membandingkan dua daftar id tanpa memperhatikan urutan.
+ * Masukan: dua daftar bilangan bulat. Keluaran: true bila isinya sama.
+ * Efek samping: tidak ada (fungsi murni).
+ * Rujukan: FR-03-01 (hanya perubahan PIC yang sebenarnya yang disimpan).
  */
-export async function stageAction(_previous: ActionState, formData: FormData): Promise<ActionState> {
+function sameIds(a: ReadonlyArray<number>, b: ReadonlyArray<number>): boolean {
+  return a.length === b.length && a.every((id) => b.includes(id));
+}
+
+/**
+ * Menyusun bagian perubahan tahapan dari isian dialog dengan membandingkan nilai awal (isian tersembunyi) terhadap
+ * nilai yang dikirim, sehingga hanya bagian yang benar-benar berubah yang disimpan.
+ * Masukan: FormData dialog Perbarui Tahapan. Keluaran: bagian untuk `updateStage`, atau galat isian (nilai progres
+ * bukan bilangan bulat).
+ * Efek samping: tidak ada (fungsi murni terhadap FormData). Semua nilai tetap divalidasi ulang oleh use case.
+ * Rujukan: Screen [016], FR-03-01, FR-05-01, FR-05-02, FR-13-01, Security Design §7.
+ */
+function readStageParts(formData: FormData): { parts: Omit<UpdateStageInput, 'stageId' | 'expectedVersion'> } | { error: ActionState } {
+  const parts: { -readonly [K in keyof Omit<UpdateStageInput, 'stageId' | 'expectedVersion'>]: Omit<UpdateStageInput, 'stageId' | 'expectedVersion'>[K] } = {};
+
+  const target = formText(formData, 'target') as StageStatus;
+  const statusInitial = formText(formData, 'statusInitial');
+  const reason = formText(formData, 'reason');
+  if (STAGE_STATUSES.includes(target) && (target !== statusInitial || (target === 'HELD' && reason.trim() !== formText(formData, 'holdReasonInitial').trim()))) {
+    parts.status = { target, reason, note: formText(formData, 'statusNote') };
+  }
+
+  const progressRaw = formText(formData, 'progressValue').trim();
+  const progressNote = formText(formData, 'progressNote');
+  if (formText(formData, 'reset') === '1' || (progressRaw === '' && formText(formData, 'hasManual') === '1')) {
+    parts.progress = { value: null, note: progressNote };
+  } else if (progressRaw !== '') {
+    const value = formInteger(formData, 'progressValue');
+    if (value === null) {
+      return { error: { ok: false, message: MESSAGES.MANUAL_PROGRESS_RANGE, fields: { 'progress.value': MESSAGES.MANUAL_PROGRESS_RANGE }, stamp: nextStamp() } };
+    }
+    if (String(value) !== formText(formData, 'progressInitial')) parts.progress = { value, note: progressNote };
+  }
+
+  const picIds = formIntegers(formData, 'picIds');
+  const initialPics = formText(formData, 'picIdsInitial').split(',').filter(Boolean).map(Number);
+  const picsChanged = formText(formData, 'picsTouched') === '1' && !sameIds(picIds, initialPics);
+  const estStart = formText(formData, 'estStart');
+  const estEnd = formText(formData, 'estEnd');
+  const filled = estStart.trim() !== '' || estEnd.trim() !== '';
+  if (picsChanged || filled) parts.planning = { ...(picsChanged ? { picIds } : {}), ...(filled ? { estStart, estEnd } : {}) };
+
+  const newStart = formText(formData, 'newStart');
+  const newEnd = formText(formData, 'newEnd');
+  if (newStart.trim() !== '' || newEnd.trim() !== '') {
+    parts.revision = { newStart, newEnd, categoryId: formInteger(formData, 'categoryId'), note: formText(formData, 'revisionNote') };
+  }
+  return { parts };
+}
+
+/**
+ * Aksi dialog Perbarui Tahapan (Screen [016]): satu tombol Simpan yang menyimpan semua bagian yang diubah (PIC dan
+ * timeline, revisi estimasi, progres, status) dalam satu transaksi.
+ * Masukan: state sebelumnya dan FormData dialog. Keluaran: state hasil dengan pesan ringkas dan saran (revisi setelah
+ * hold, batas revisi tercapai).
+ * Efek samping: menjalankan `updateStage` (menulis tahapan dan audit; batal seluruhnya bila ada bagian ditolak) lalu
+ * me-refresh halaman Project. Hak akses dicek di server oleh tiap bagian.
+ * Rujukan: Screen [016], FR-03-01, FR-05-01, FR-05-02, FR-13-01, FR-13-04, NFR-10.
+ */
+export async function updateStageAction(_previous: ActionState, formData: FormData): Promise<ActionState> {
   const { actor } = await requirePageSession();
-  const deps = getContainer().project;
   const stageId = formInteger(formData, 'stageId');
   const expectedVersion = formInteger(formData, 'expectedVersion');
   if (stageId === null || expectedVersion === null) return { ok: false, message: MESSAGES.UNEXPECTED, stamp: nextStamp() };
-  const base = { stageId, expectedVersion };
+  const read = readStageParts(formData);
+  if ('error' in read) return read.error;
 
-  let state: ActionState;
-  switch (formText(formData, 'intent')) {
-    case 'planning': {
-      const hasEstimate = formData.has('estStart') || formData.has('estEnd');
-      state = toActionState(
-        await updateStagePlanning(deps, actor, {
-          ...base,
-          picIds: formText(formData, 'picsTouched') === '1' ? formIntegers(formData, 'picIds') : undefined,
-          ...(hasEstimate ? { estStart: formText(formData, 'estStart'), estEnd: formText(formData, 'estEnd') } : {}),
-        }),
-        'Perencanaan tahapan disimpan.',
-      );
-      break;
-    }
-    case 'status': {
-      const target = formText(formData, 'target') as StageStatus;
-      if (!STAGE_STATUSES.includes(target)) {
-        state = { ok: false, message: MESSAGES.UNEXPECTED, stamp: nextStamp() };
-        break;
-      }
-      const result = await updateStageStatus(deps, actor, { ...base, target, reason: formText(formData, 'reason'), note: formText(formData, 'note') });
-      state = toActionState(
-        result,
-        result.ok && result.data.suggestRevision ? 'Status disimpan. Pertimbangkan merevisi estimasi tahapan karena sempat ditahan.' : 'Status tahapan disimpan.',
-      );
-      break;
-    }
-    case 'progress': {
-      const reset = formText(formData, 'reset') === '1';
-      const value = formInteger(formData, 'value');
-      if (!reset && value === null) {
-        state = { ok: false, message: MESSAGES.MANUAL_PROGRESS_RANGE, fields: { value: MESSAGES.MANUAL_PROGRESS_RANGE }, stamp: nextStamp() };
-        break;
-      }
-      state = toActionState(
-        await setManualProgress(deps, actor, { ...base, value: reset ? null : value, note: formText(formData, 'note') }),
-        reset ? 'Progres dikembalikan ke hitungan sistem.' : 'Progres tahapan disimpan.',
-      );
-      break;
-    }
-    case 'revise': {
-      const result = await reviseStageEstimate(deps, actor, {
-        ...base,
-        newStart: formText(formData, 'newStart'),
-        newEnd: formText(formData, 'newEnd'),
-        categoryId: formInteger(formData, 'categoryId'),
-        note: formText(formData, 'note'),
-      });
-      state = toActionState(
-        result,
-        result.ok
-          ? result.data.warning.justReached
-            ? `Revisi ${result.data.seq} disimpan. Tahapan ini sudah mencapai batas peringatan revisi.`
-            : result.data.seq === 0
-              ? 'Estimasi awal disimpan.'
-              : `Revisi ${result.data.seq} disimpan.`
-          : '',
-      );
-      break;
-    }
-    default:
-      state = { ok: false, message: MESSAGES.UNEXPECTED, stamp: nextStamp() };
-  }
+  const result = await updateStage(getContainer().project, actor, { stageId, expectedVersion, ...read.parts });
   revalidatePath('/project', 'layout');
-  return state;
+  if (!result.ok) return toActionState(result, '');
+  const notes: string[] = [];
+  if (result.data.suggestRevision) notes.push('Pertimbangkan merevisi estimasi tahapan karena sempat ditahan.');
+  if (result.data.revisionWarning?.justReached) notes.push(`Revisi ${result.data.revisionSeq} disimpan. Tahapan ini sudah mencapai batas peringatan revisi.`);
+  return toActionState(result, ['Perubahan disimpan.', ...notes].join(' '));
 }

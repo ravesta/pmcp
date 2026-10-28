@@ -1,0 +1,45 @@
+/*
+ * Gaya Gantt, mengikuti kelas pada mockup v0.2 (gt, gr, gl, gc, gb, gbase, gact, gover, gnote, gtd, legend).
+ * Warna memakai token mockup (variabel CSS) sehingga mengikuti tema terang dan gelap. Geometri (posisi dan lebar
+ * dalam piksel) diberikan inline oleh komponen karena bergantung pada zoom dan periode.
+ */
+.gt { overflow: auto; max-height: min(72vh, 680px); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.gr { display: flex; border-bottom: 1px solid var(--line); min-height: 34px; }
+.gl { flex: none; width: 200px; padding: 6px 8px; border-right: 1px solid var(--line); font-size: 12px; position: sticky; left: 0; background: var(--surface); z-index: 3; }
+.gh { background: var(--soft); position: sticky; top: 0; z-index: 4; box-shadow: 0 1px 0 var(--line); }
+.gh .gl { z-index: 5; background: var(--soft); height: 40px; }
+.ph .gl, .ph .gc { background: var(--soft); font-weight: 600; }
+.gc { position: relative; flex: none; }
+.name { color: var(--ink); text-decoration: none; font-weight: 600; }
+.name:hover { color: var(--accent); text-decoration: underline; }
+.code { color: var(--muted); font-weight: 400; margin-left: 4px; }
+.pst { font-weight: 600; font-size: 13px; white-space: nowrap; margin-left: 4px; color: var(--bk); }
+.pst.BACKLOG { color: var(--bk); } .pst.RUNNING { color: var(--run); } .pst.DEFERRED { color: var(--warn); }
+.pst.CANCELLED { color: var(--cancel); } .pst.COMPLETED { color: var(--ok); }
+.tick { position: absolute; top: 0; height: 40px; border-left: 1px solid var(--line); font-size: 11px; color: var(--muted); padding: 2px 4px; white-space: nowrap; }
+.dayno { position: absolute; top: 22px; text-align: center; font-size: 10px; }
+.gb { position: absolute; top: 6px; height: 22px; border-radius: 4px; color: #fff; font-size: 11px; padding: 3px 6px; overflow: hidden; white-space: nowrap; border: 0; text-align: left; text-decoration: none; display: block; box-sizing: border-box; }
+a.gb { cursor: pointer; }
+.gb.BA { background: var(--ba); } .gb.DEV { background: var(--dev); } .gb.QA { background: var(--qa); }
+.gb.late { box-shadow: inset 0 0 0 2px var(--late); }
+.gb.done { opacity: 0.55; }
+.gb.dlate { box-shadow: inset 0 0 0 2px var(--late); }
+.gb.mine { outline: 2px solid var(--accent); outline-offset: 1px; }
+.gb.hold { background: repeating-linear-gradient(45deg, var(--hold), var(--hold) 6px, #7a64b3 6px, #7a64b3 12px); }
+.gb .pg { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.3); }
+.gb .sext { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, rgba(255, 184, 64, 0.93) 0 3px, rgba(176, 98, 0, 0.93) 3px 6px); }
+.gb .txt { position: relative; z-index: 2; text-shadow: 0 0 3px rgba(0, 0, 0, 0.6); }
+.gbase { position: absolute; top: 3px; height: 30px; border: 2px dashed var(--muted); border-radius: 5px; opacity: 0.85; pointer-events: none; box-sizing: border-box; }
+.gact { position: absolute; top: 31px; height: 4px; background: var(--ink); border-radius: 2px; opacity: 0.85; }
+.gact.hld { background: repeating-linear-gradient(45deg, var(--hold), var(--hold) 3px, #7a64b3 3px, #7a64b3 6px); }
+.gact.live { background: repeating-linear-gradient(90deg, var(--ink) 0 6px, transparent 6px 9px); }
+.gover { position: absolute; top: 6px; height: 22px; margin-left: -1px; border-radius: 0 4px 4px 0; background: repeating-linear-gradient(45deg, var(--late) 0 5px, #7d2318 5px 10px); color: #fff; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; overflow: hidden; pointer-events: none; z-index: 1; }
+.gnote { position: absolute; top: 8px; display: flex; gap: 4px; align-items: center; white-space: nowrap; font-size: 11px; z-index: 3; background: var(--surface); padding: 0 4px; border-radius: 4px; }
+.gtd { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--today); z-index: 2; }
+.gnt { position: sticky; left: 214px; display: inline-block; margin: 4px 0 0 8px; font-style: italic; color: var(--muted); white-space: nowrap; z-index: 1; background: var(--surface); padding: 2px 8px; border: 1px dashed var(--line); border-radius: 4px; font-size: 12px; }
+.gnt a { color: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); align-items: center; }
+.legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.empty { padding: 24px; text-align: center; color: var(--muted); }
+.ck { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); min-height: 26px; color: var(--ink); text-decoration: none; }
+.ck.on { border-color: var(--accent); background: var(--run-bg); }
