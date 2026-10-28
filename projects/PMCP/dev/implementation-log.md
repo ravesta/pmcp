@@ -102,6 +102,25 @@ diuji sama dengan jumlah pada layar tujuan (NFR-14). Uji: 393 uji hijau; alur br
 | Timeline proyek saya | Bar yang sama dengan Gantt | Garis waktu ringkas (batang proporsional dan penanda hari ini) | Cukup untuk membaca jadwal dan benturan; bar penuh ada di tab Project |
 | Rincian jam kapasitas tabel Head | Rincian per hari atau minggu | Hanya ringkasan per PIC pada tabel Head; rincian pada Dashboard PIC | Sesuai FR-04-04 (tabel) dan FR-07-05 (rincian pribadi) |
 
+## Irisan 5 (sebagian): pengerasan dan performa (2026-10-28)
+
+Cabang `irisan-4-wip` dan `irisan-5-pengerasan` digabung ke `main` repository `pmcp_app`.
+
+- **Keamanan:** CSP kini bernonce lewat `src/proxy.ts` (skrip dan gaya hanya yang bernonce, `strict-dynamic`; atribut `style`
+  diizinkan terpisah); HSTS dipasang saat berjalan (bukan saat build); pencatatan kegagalan login satu pernyataan SQL
+  atomik (diuji 12 percobaan paralel). Dua catatan terbuka dari tinjauan irisan 1 ditutup. Diverifikasi pada build
+  produksi: tanpa pelanggaran CSP di seluruh layar utama.
+- **Performa:** `scripts/seed-reference-data.mjs` membuat data acuan (300 project, 900 tahapan, 15 PIC, 6.000 kartu,
+  60.000 log, 100.000 audit) dan `scripts/measure-performance.mjs` mengukur tiap layar (`npm run perf:seed`,
+  `npm run perf:measure`). Hasil build produksi: seluruh layar utama median 30 sampai 400 ms (anggaran server 1.000 ms).
+  Temuan: papan Kanban Manager 2.600 ms karena memuat semua kartu terbuka; diperbaiki dengan batas 40 kartu per kolom
+  (jumlah sebenarnya tetap tampil, "Tampilkan lebih banyak") dan filter "memperpanjang estimasi" dihitung di SQL (0,13 detik).
+  Kueri fakta kartu memakai `IN` pada project, bukan ratusan klausa `OR`.
+- **Tampilan:** layar Master (kartu, navigasi pil, chip, tabel) mengikuti mockup v0.2. Login dan Ubah Password tidak
+  direstyle karena mockup v0.2 hanya memuat layar setelah login.
+- Belum: uji E2E penuh otomatis, dokumen deployment dan operasi (menunggu jawaban tim infra), data awal master final,
+  handover ke QA.
+
 ### Penyempurnaan terhadap Technical Design (tidak mengubah keputusan)
 
 | Hal | Tertulis di Technical Design | Implementasi | Alasan |
