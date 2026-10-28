@@ -15,5 +15,7 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.ts'],
     testTimeout: 30_000,
+    // persiapan dan pembersihan database uji (migrasi, hash password, DROP DATABASE) lebih lambat di mesin lokal
+    hookTimeout: 120_000,
   },
 });
