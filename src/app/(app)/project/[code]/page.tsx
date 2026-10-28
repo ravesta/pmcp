@@ -1,6 +1,7 @@
 import Alert from '@mui/material/Alert';
 import Link from 'next/link';
 import { listProjectHistory } from '@/modules/audit';
+import { listProjectPlans, listProjectWorkLogs } from '@/modules/kanban';
 import { getProjectDetail } from '@/modules/project';
 import { getContainer } from '@/platform/container';
 import { addDays, startOfWeek } from '@/shared/calendar';
@@ -15,6 +16,8 @@ import { EditInfoButton } from '../_components/edit-info-dialog';
 import { GanttChart } from '../_components/gantt-chart';
 import { GanttLegend } from '../_components/gantt-legend';
 import { ProjectHistory } from '../_components/project-history';
+import { ProjectLogs } from '../_components/project-logs';
+import { ProjectPlans } from '../_components/project-plans';
 import { StageBox } from '../_components/stage-box';
 import { StageHistory } from '../_components/stage-history';
 
@@ -69,7 +72,15 @@ export default async function ProjectDetailPage({
 
   const { project, revisions, options, revisionThreshold, canEditInfo } = detail.data;
   const pageParam = typeof query.rhal === 'string' && /^\d{1,6}$/.test(query.rhal) ? Number(query.rhal) : 1;
-  const history = await listProjectHistory(container.auditRepository, project.code, pageParam, HISTORY_PAGE_SIZE);
+  const logStage = typeof query.lstage === 'string' && ['BA', 'DEV', 'QA'].includes(query.lstage) ? (query.lstage as 'BA' | 'DEV' | 'QA') : null;
+  const logPic = typeof query.lpic === 'string' && /^\d{1,9}$/.test(query.lpic) ? Number(query.lpic) : null;
+  const logPage = typeof query.lhal === 'string' && /^\d{1,6}$/.test(query.lhal) ? Number(query.lhal) : 1;
+  const logSize = typeof query.lper === 'string' && /^\d{1,3}$/.test(query.lper) ? Number(query.lper) : 10;
+  const [history, plans, logs] = await Promise.all([
+    listProjectHistory(container.auditRepository, project.code, pageParam, HISTORY_PAGE_SIZE),
+    listProjectPlans(container.kanban, actor, project.id),
+    listProjectWorkLogs(container.kanban, project.id, { stage: logStage, picId: logPic }, logPage, logSize),
+  ]);
   const autoOpenKind = typeof query.ubah === 'string' ? query.ubah : null;
   const showLayers = query.lapisan !== '0';
   const base = `/project/${project.code}`;
@@ -143,10 +154,18 @@ export default async function ProjectDetailPage({
       </Section>
 
       <Section title="Rencana kerja">
-        <div className={styles.muted} style={{ padding: 16, textAlign: 'center' }}>Rencana kerja dari kartu Kanban semua PIC pada project ini akan tampil di sini setelah menu Kanban tersedia.</div>
+        <ProjectPlans cards={plans} />
       </Section>
       <Section title="Log activity">
-        <div className={styles.muted} style={{ padding: 16, textAlign: 'center' }}>Log activity dari kartu Kanban semua PIC pada project ini akan tampil di sini setelah menu Kanban tersedia.</div>
+        <ProjectLogs
+          page={logs}
+          pageNumber={logPage}
+          pageSize={[5, 10, 20].includes(logSize) ? logSize : 10}
+          stage={logStage ?? ''}
+          picId={logPic === null ? '' : String(logPic)}
+          baseHref={base}
+          hrefFor={(page) => `${base}?${new URLSearchParams({ ...(logStage ? { lstage: logStage } : {}), ...(logPic !== null ? { lpic: String(logPic) } : {}), ...(logSize !== 10 ? { lper: String(logSize) } : {}), ...(page > 1 ? { lhal: String(page) } : {}) }).toString()}`}
+        />
       </Section>
 
       <Section title="Riwayat estimasi dan penahanan">

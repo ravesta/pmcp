@@ -61,8 +61,8 @@ interface PlainSelectProps {
   readonly label: string;
   readonly options: ReadonlyArray<PlainOption>;
   readonly defaultValue?: string;
-  /** Label pilihan kosong (bawaan "Semua"). */
-  readonly emptyLabel?: string;
+  /** Label pilihan kosong (bawaan "Semua"); null = tanpa pilihan kosong. */
+  readonly emptyLabel?: string | null;
 }
 
 /**
@@ -75,7 +75,7 @@ export function PlainSelect({ id, name, label, options, defaultValue = '', empty
   return (
     <PlainField label={label} htmlFor={id}>
       <select id={id} name={name} className={styles.control} defaultValue={defaultValue}>
-        <option value="">{emptyLabel}</option>
+        {emptyLabel === null ? null : <option value="">{emptyLabel}</option>}
         {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
     </PlainField>
