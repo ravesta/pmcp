@@ -1,14 +1,7 @@
-import Paper from '@mui/material/Paper';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import type { RevisionRow, StageView } from '@/modules/project';
-import { formatDateOrDash, formatRange } from '@/ui/format/project-labels';
 import { formatDateTime } from '@/shared/format';
+import { formatDateOrDash, formatRange } from '@/ui/format/project-labels';
+import styles from './detail.module.css';
 
 /** Properti riwayat estimasi dan penahanan. */
 interface StageHistoryProps {
@@ -16,48 +9,76 @@ interface StageHistoryProps {
   readonly revisions: ReadonlyMap<number, ReadonlyArray<RevisionRow>>;
 }
 
+/** Satu baris riwayat. */
+interface HistoryRow {
+  readonly key: string;
+  readonly stage: string;
+  readonly kind: string;
+  readonly detail: string;
+  readonly reason: string;
+  readonly by: string;
+  readonly at: string;
+}
+
 /**
- * Riwayat estimasi dan penahanan seluruh tahapan: estimasi awal, setiap revisi bernomor (sebelum dan sesudah,
- * kategori, catatan, pelaku, waktu, kartu asal), dan periode hold dengan alasannya.
- * Masukan: tahapan dan revisi per id tahapan. Keluaran: tabel riwayat, atau kalimat kosong.
- * Efek samping: tidak ada (komponen murni).
- * Rujukan: FR-11-01 butir 2, FR-13-01, FR-13-02 butir 3, FR-13-05 butir 2.
+ * Menyusun baris riwayat seluruh tahapan: estimasi awal, periode hold (selesai dan berlangsung), dan revisi bernomor
+ * dengan kategori, catatan, kartu asal, pelaku, dan waktu.
+ * Masukan: tahapan dan revisi per id tahapan. Keluaran: baris riwayat berurutan menurut tahapan.
+ * Efek samping: tidak ada (fungsi murni).
+ * Rujukan: FR-11-01 butir 2, FR-13-01, FR-13-02 butir 3, FR-13-05 butir 2, mockup v0.2 (fungsi estHistory).
  */
-export function StageHistory({ stages, revisions }: StageHistoryProps) {
-  const rows = stages.flatMap((stage) => {
-    const entries: Array<{ key: string; stage: string; kind: string; detail: string; note: string; who: string }> = [];
-    if (stage.baseline) entries.push({ key: `${stage.stageId}-awal`, stage: stage.label, kind: 'Estimasi awal', detail: formatRange(stage.baseline), note: '-', who: '-' });
-    for (const revision of revisions.get(stage.stageId) ?? []) {
-      entries.push({
-        key: `${stage.stageId}-rev-${revision.seq}`,
-        stage: stage.label,
-        kind: `Revisi ${revision.seq}`,
-        detail: `${formatRange(revision.previous)} → ${formatRange(revision.next)}`,
-        note: `${revision.categoryName}: ${revision.note}${revision.sourceCardCodes.length > 0 ? ` (kartu ${revision.sourceCardCodes.join(', ')})` : ''}`,
-        who: `${revision.createdByLabel}, ${formatDateTime(revision.createdAt)}`,
-      });
-    }
+function buildRows(stages: ReadonlyArray<StageView>, revisions: ReadonlyMap<number, ReadonlyArray<RevisionRow>>): HistoryRow[] {
+  return stages.flatMap((stage) => {
+    const rows: HistoryRow[] = [];
+    if (stage.baseline) rows.push({ key: `${stage.stageId}-awal`, stage: stage.kind, kind: 'Estimasi awal', detail: formatRange(stage.baseline), reason: '-', by: '-', at: '-' });
     stage.holdHistory.forEach((hold, index) =>
-      entries.push({ key: `${stage.stageId}-hold-${index}`, stage: stage.label, kind: 'Hold', detail: `${formatDateOrDash(hold.since)} - ${formatDateOrDash(hold.resumedOn)}`, note: hold.reason, who: '-' }),
+      rows.push({ key: `${stage.stageId}-hold-${index}`, stage: stage.kind, kind: 'Ditahan', detail: `sejak ${formatDateOrDash(hold.since)} s.d. ${formatDateOrDash(hold.resumedOn)}`, reason: hold.reason, by: '-', at: '-' }),
     );
     if (stage.status === 'HELD' && stage.holdSince) {
-      entries.push({ key: `${stage.stageId}-hold-now`, stage: stage.label, kind: 'Hold berjalan', detail: `sejak ${formatDateOrDash(stage.holdSince)}`, note: stage.holdReason ?? '-', who: '-' });
+      rows.push({ key: `${stage.stageId}-hold-now`, stage: stage.kind, kind: 'Ditahan (berlangsung)', detail: `sejak ${formatDateOrDash(stage.holdSince)}`, reason: stage.holdReason ?? '-', by: '-', at: '-' });
     }
-    return entries;
+    for (const revision of revisions.get(stage.stageId) ?? []) {
+      rows.push({
+        key: `${stage.stageId}-rev-${revision.seq}`,
+        stage: stage.kind,
+        kind: `Revisi ${revision.seq}`,
+        detail: `${formatRange(revision.previous)} → ${formatRange(revision.next)}`,
+        reason: `${revision.categoryName}: ${revision.note}${revision.sourceCardCodes.length > 0 ? ` (otomatis dari kartu ${revision.sourceCardCodes.join(', ')})` : ''}`,
+        by: revision.createdByLabel,
+        at: formatDateTime(revision.createdAt),
+      });
+    }
+    return rows;
   });
-  if (rows.length === 0) return <Typography color="text.secondary">Belum ada riwayat estimasi atau penahanan.</Typography>;
+}
+
+/**
+ * Riwayat estimasi dan penahanan seluruh tahapan sebagai tabel: tahapan, jenis, estimasi atau periode, alasan, pelaku,
+ * dan waktu.
+ * Masukan: tahapan dan revisi per id tahapan. Keluaran: tabel, atau kalimat kosong.
+ * Efek samping: tidak ada (komponen murni).
+ * Rujukan: FR-11-01 butir 2, FR-13-01, FR-13-02, mockup v0.2.
+ */
+export function StageHistory({ stages, revisions }: StageHistoryProps) {
+  const rows = buildRows(stages, revisions);
+  if (rows.length === 0) return <div className={`${styles.muted} ${styles.small}`}>Belum ada estimasi yang tercatat.</div>;
   return (
-    <Paper variant="outlined">
-      <TableContainer>
-        <Table size="small" sx={{ minWidth: 640 }} aria-label="Riwayat estimasi dan penahanan">
-          <TableHead><TableRow><TableCell>Tahapan</TableCell><TableCell>Jenis</TableCell><TableCell>Rincian</TableCell><TableCell>Alasan dan catatan</TableCell><TableCell>Oleh</TableCell></TableRow></TableHead>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.key}><TableCell>{row.stage}</TableCell><TableCell>{row.kind}</TableCell><TableCell>{row.detail}</TableCell><TableCell>{row.note}</TableCell><TableCell>{row.who}</TableCell></TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Paper>
+    <div className={styles.wrap}>
+      <table className={styles.at} aria-label="Riwayat estimasi dan penahanan">
+        <thead><tr><th>Tahapan</th><th>Jenis</th><th>Estimasi / periode</th><th>Alasan</th><th>Oleh</th><th>Waktu</th></tr></thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.key}>
+              <td className={styles.small}><b>{row.stage}</b></td>
+              <td className={styles.small}>{row.kind}</td>
+              <td className={`${styles.mono} ${styles.small}`} style={{ whiteSpace: 'nowrap' }}>{row.detail}</td>
+              <td className={styles.small}>{row.reason}</td>
+              <td className={styles.small}>{row.by}</td>
+              <td className={`${styles.mono} ${styles.small}`} style={{ whiteSpace: 'nowrap' }}>{row.at}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

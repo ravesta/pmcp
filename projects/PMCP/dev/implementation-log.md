@@ -39,6 +39,15 @@ Total: **87 uji** (59 unit termasuk uji arsitektur dan konvensi kode, 28 integra
 2. **Klien database belum ada**: `prisma db pull` dan klien Prisma ditambahkan pada irisan 1 sesuai TD-16; ping database pada `/api/health` menyusul.
 3. Prisma belum dipasang; migrasi berformat folder Prisma sehingga `prisma migrate deploy` dapat dipakai kelak.
 
+### Penyelarasan layar dengan mockup v0.2 (2026-10-28)
+
+Seluruh layar Project (Daftar, Gantt, Detail, Buat project, dialog Perbarui tahapan, dialog Ubah informasi) mengikuti
+`ux-ui/mockup/mockup-eksplorasi-v0.2.html`: token warna dan font dari mockup, komponen reusable di `src/ui/components`
+(Card, Section, ToneChip, FilterBar, PaginationBar, StatusStrip, dll.), dialog tahapan satu formulir dengan satu tombol
+Simpan lewat use case atomik `updateStage` (planning, revisi, progres, status dalam satu transaksi). Catatan Kanban pada
+Detail (Rencana kerja, Log activity) menunggu irisan 3. Uji: 306 uji hijau; alur e2e manual (Playwright) lulus tanpa
+galat konsol.
+
 ### Penyempurnaan terhadap Technical Design (tidak mengubah keputusan)
 
 | Hal | Tertulis di Technical Design | Implementasi | Alasan |

@@ -4,7 +4,7 @@
  * Murni dan tidak bergantung pada React sehingga dapat diuji. Posisi dinyatakan dalam persen dari lebar jalur
  * sehingga bar mengikuti lebar apa pun; lebar minimum jalur (piksel) menentukan keterbacaan menurut zoom.
  */
-import { addDays, calendarDaysBetween, dayOfWeek, monthRange, startOfWeek } from '@/shared/calendar';
+import { addDays, calendarDaysBetween, dayOfWeek, monthRange } from '@/shared/calendar';
 import { isIsoDate, toIsoDate, type IsoDate } from '@/shared/iso-date';
 
 /** Pilihan zoom Gantt (FR-12-01 butir 3). */
@@ -16,18 +16,18 @@ export interface MonthWindow {
   readonly to: string;
 }
 
-/** Satu kolom header (hari, minggu, atau bulan). */
-export interface TimelineColumn {
+/** Satu penanda pada header tanggal (Senin, awal bulan, atau nomor hari). */
+export interface TimelineTick {
   readonly key: string;
   readonly label: string;
-  readonly leftPercent: number;
-  readonly widthPercent: number;
+  /** Posisi kiri dalam piksel dari awal jalur. */
+  readonly leftPx: number;
 }
 
-/** Area yang diarsir (akhir pekan). */
+/** Area yang diarsir atau digambar pada jalur, dalam piksel. */
 export interface Span {
-  readonly leftPercent: number;
-  readonly widthPercent: number;
+  readonly leftPx: number;
+  readonly widthPx: number;
 }
 
 /** Skala waktu siap pakai. */
@@ -35,16 +35,22 @@ export interface Timeline {
   readonly start: IsoDate;
   readonly end: IsoDate;
   readonly totalDays: number;
-  /** Lebar minimum jalur (piksel) menurut zoom. */
-  readonly minWidthPx: number;
-  readonly columns: ReadonlyArray<TimelineColumn>;
+  readonly zoom: Zoom;
+  /** Lebar satu hari (piksel) menurut zoom. */
+  readonly pxPerDay: number;
+  /** Lebar seluruh jalur (piksel). */
+  readonly widthPx: number;
+  /** Penanda baris atas header: Senin (dd/mm) pada zoom Hari dan Minggu, awal bulan pada zoom Bulan. */
+  readonly ticks: ReadonlyArray<TimelineTick>;
+  /** Nomor hari pada baris bawah header (hanya zoom Hari). */
+  readonly dayNumbers: ReadonlyArray<TimelineTick>;
   readonly weekends: ReadonlyArray<Span>;
-  /** Posisi garis hari ini (persen), atau null bila di luar jendela. */
-  readonly todayPercent: number | null;
+  /** Posisi garis hari ini (piksel), atau null bila di luar jendela. */
+  readonly todayPx: number | null;
 }
 
-/** Piksel per hari menurut zoom. */
-const PX_PER_DAY: Readonly<Record<Zoom, number>> = { DAY: 28, WEEK: 11, MONTH: 4 };
+/** Piksel per hari menurut zoom: Hari 24, Minggu 10, Bulan 4 (sama dengan mockup v0.2). */
+export const PX_PER_DAY: Readonly<Record<Zoom, number>> = { DAY: 24, WEEK: 10, MONTH: 4 };
 
 /** Batas panjang jendela agar halaman tetap ringan (FR-12-01 butir 2: bulan ke bulan). */
 export const MAX_WINDOW_MONTHS = 12;
@@ -59,6 +65,17 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Se
  */
 export function monthKeyOf(date: IsoDate): string {
   return date.slice(0, 7);
+}
+
+/**
+ * Menulis kunci bulan sebagai "Okt 2026".
+ * Masukan: kunci bulan `YYYY-MM`. Keluaran: label bulan singkat dan tahun.
+ * Efek samping: tidak ada (fungsi murni).
+ * Rujukan: FR-12-01 butir 2, mockup v0.2 (fungsi ymLabel).
+ */
+export function monthLabel(key: string): string {
+  const parsed = parseMonthKey(key);
+  return parsed ? `${MONTH_NAMES[parsed.month - 1]} ${parsed.year}` : key;
 }
 
 /**
@@ -84,6 +101,22 @@ export function shiftMonthKey(key: string, months: number): string {
   const index = parsed.year * 12 + (parsed.month - 1) + months;
   const year = Math.floor(index / 12);
   return `${String(year).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Daftar bulan yang dapat dipilih pada pemilih periode: tiga bulan ke belakang sampai enam bulan ke depan.
+ * Masukan: hari ini. Keluaran: pilihan (kunci dan label).
+ * Efek samping: tidak ada (fungsi murni).
+ * Rujukan: FR-12-01 butir 2 (Dari dan Sampai bulan), mockup v0.2.
+ */
+export function monthOptions(today: IsoDate): Array<{ value: string; label: string }> {
+  const current = monthKeyOf(today);
+  const options: Array<{ value: string; label: string }> = [];
+  for (let offset = -3; offset <= 6; offset += 1) {
+    const key = shiftMonthKey(current, offset);
+    options.push({ value: key, label: monthLabel(key) });
+  }
+  return options;
 }
 
 /**
@@ -115,95 +148,82 @@ export function normalizeWindow(from: string | undefined, to: string | undefined
 }
 
 /**
- * Persen posisi sebuah hari terhadap jendela.
- * Masukan: awal jendela, jumlah hari, dan tanggal. Keluaran: persen (dapat di luar 0..100).
+ * Membangun penanda baris atas header: Senin (dd/mm) untuk zoom Hari dan Minggu, awal bulan untuk zoom Bulan.
+ * Masukan: awal dan akhir jendela, piksel per hari, dan zoom. Keluaran: daftar penanda.
  * Efek samping: tidak ada (fungsi murni).
- * Rujukan: FR-12-02.
+ * Rujukan: FR-12-01 butir 3, mockup v0.2 (fungsi ganttHtml).
  */
-function percentOf(start: IsoDate, totalDays: number, date: IsoDate): number {
-  return (calendarDaysBetween(start, date) / totalDays) * 100;
-}
-
-/**
- * Membangun kolom header menurut zoom: hari, awal minggu (Senin), atau bulan.
- * Masukan: awal dan akhir jendela, jumlah hari, dan zoom. Keluaran: daftar kolom.
- * Efek samping: tidak ada (fungsi murni).
- * Rujukan: FR-12-01 butir 3.
- */
-function buildColumns(start: IsoDate, end: IsoDate, totalDays: number, zoom: Zoom): TimelineColumn[] {
-  const columns: TimelineColumn[] = [];
-  const push = (key: string, label: string, from: IsoDate, to: IsoDate): void => {
-    const clippedFrom = from < start ? start : from;
-    const clippedTo = to > end ? end : to;
-    columns.push({
-      key,
-      label,
-      leftPercent: percentOf(start, totalDays, clippedFrom),
-      widthPercent: ((calendarDaysBetween(clippedFrom, clippedTo) + 1) / totalDays) * 100,
-    });
-  };
-  if (zoom === 'DAY') {
-    for (let day = start; day <= end; day = addDays(day, 1)) push(day, String(Number(day.slice(8, 10))), day, day);
-  } else if (zoom === 'WEEK') {
-    for (let monday = startOfWeek(start); monday <= end; monday = addDays(monday, 7)) {
-      push(monday, `${monday.slice(8, 10)}/${monday.slice(5, 7)}`, monday, addDays(monday, 6));
-    }
-  } else {
-    for (let cursor = start; cursor <= end; ) {
-      const range = monthRange(cursor);
-      push(range.start, `${MONTH_NAMES[Number(range.start.slice(5, 7)) - 1]} ${range.start.slice(0, 4)}`, range.start, range.end);
-      cursor = addDays(range.end, 1);
+function buildTicks(start: IsoDate, end: IsoDate, pxPerDay: number, zoom: Zoom): TimelineTick[] {
+  const ticks: TimelineTick[] = [];
+  for (let day = start; day <= end; day = addDays(day, 1)) {
+    const leftPx = calendarDaysBetween(start, day) * pxPerDay;
+    if (zoom === 'MONTH') {
+      if (day === start || day.slice(8, 10) === '01') ticks.push({ key: day, label: monthLabel(monthKeyOf(day)), leftPx });
+    } else if (dayOfWeek(day) === 1) {
+      ticks.push({ key: day, label: `${day.slice(8, 10)}/${day.slice(5, 7)}`, leftPx });
     }
   }
-  return columns;
+  return ticks;
 }
 
 /**
  * Membangun skala waktu untuk jendela bulan dan zoom tertentu.
- * Masukan: jendela bulan, zoom, dan hari ini. Keluaran: `Timeline`.
+ * Masukan: jendela bulan, zoom, dan hari ini. Keluaran: `Timeline` dalam piksel.
  * Efek samping: tidak ada (fungsi murni).
  * Rujukan: FR-12-01 butir 2 sampai 4 (akhir pekan diarsir, garis hari ini).
  */
 export function buildTimeline(window: MonthWindow, zoom: Zoom, today: IsoDate): Timeline {
-  const start = monthRange(toIsoDate(`${window.from}-01`)).start;
-  const end = monthRange(toIsoDate(`${window.to}-01`)).end;
+  return buildTimelineForRange(monthRange(toIsoDate(`${window.from}-01`)).start, monthRange(toIsoDate(`${window.to}-01`)).end, zoom, today);
+}
+
+/**
+ * Membangun skala waktu untuk rentang tanggal bebas (dipakai bagian "Jadwal" pada Detail Project).
+ * Masukan: tanggal awal dan akhir, zoom, dan hari ini. Keluaran: `Timeline` dalam piksel.
+ * Efek samping: tidak ada (fungsi murni).
+ * Rujukan: FR-11-01 (jadwal project di detail), FR-12-01 butir 2 sampai 4.
+ */
+export function buildTimelineForRange(start: IsoDate, end: IsoDate, zoom: Zoom, today: IsoDate): Timeline {
   const totalDays = calendarDaysBetween(start, end) + 1;
+  const pxPerDay = PX_PER_DAY[zoom];
   const weekends: Span[] = [];
-  if (zoom !== 'MONTH') {
-    for (let day = start; day <= end; day = addDays(day, 1)) {
-      if (dayOfWeek(day) === 6) {
-        const spanEnd = addDays(day, 1) > end ? day : addDays(day, 1);
-        weekends.push({ leftPercent: percentOf(start, totalDays, day), widthPercent: ((calendarDaysBetween(day, spanEnd) + 1) / totalDays) * 100 });
-      } else if (dayOfWeek(day) === 0 && day === start) {
-        weekends.push({ leftPercent: 0, widthPercent: (1 / totalDays) * 100 });
-      }
+  const dayNumbers: TimelineTick[] = [];
+  for (let day = start; day <= end; day = addDays(day, 1)) {
+    const leftPx = calendarDaysBetween(start, day) * pxPerDay;
+    if (zoom !== 'MONTH') {
+      const weekday = dayOfWeek(day);
+      if (weekday === 0 || weekday === 6) weekends.push({ leftPx, widthPx: pxPerDay });
     }
+    if (zoom === 'DAY') dayNumbers.push({ key: day, label: String(Number(day.slice(8, 10))), leftPx });
   }
   return {
     start,
     end,
     totalDays,
-    minWidthPx: Math.max(640, totalDays * PX_PER_DAY[zoom]),
-    columns: buildColumns(start, end, totalDays, zoom),
+    zoom,
+    pxPerDay,
+    widthPx: totalDays * pxPerDay,
+    ticks: buildTicks(start, end, pxPerDay, zoom),
+    dayNumbers,
     weekends,
-    todayPercent: today >= start && today <= end ? percentOf(start, totalDays, today) + (0.5 / totalDays) * 100 : null,
+    todayPx: today >= start && today <= end ? calendarDaysBetween(start, today) * pxPerDay + pxPerDay / 2 : null,
   };
 }
 
 /**
- * Menghitung posisi dan lebar sebuah rentang tanggal pada jalur, dipotong ke jendela.
- * Masukan: skala waktu dan rentang (kedua ujung inklusif). Keluaran: persen kiri dan lebar, atau null bila rentang
+ * Menghitung posisi dan lebar sebuah rentang tanggal pada jalur (piksel), dipotong ke jendela. Lebar minimum satu
+ * hari agar rentang pendek tetap terlihat.
+ * Masukan: skala waktu dan rentang (kedua ujung inklusif). Keluaran: posisi dan lebar, atau null bila rentang
  * seluruhnya di luar jendela.
  * Efek samping: tidak ada (fungsi murni).
- * Rujukan: FR-12-02 (bar, estimasi awal, aktual, hold, tambahan, telat).
+ * Rujukan: FR-12-02 (bar, estimasi awal, aktual, hold, tambahan, telat), mockup v0.2 (fungsi geo).
  */
 export function placeRange(timeline: Timeline, range: { start: IsoDate; end: IsoDate }): Span | null {
   if (range.end < timeline.start || range.start > timeline.end) return null;
   const from = range.start < timeline.start ? timeline.start : range.start;
   const to = range.end > timeline.end ? timeline.end : range.end;
   return {
-    leftPercent: percentOf(timeline.start, timeline.totalDays, from),
-    widthPercent: ((calendarDaysBetween(from, to) + 1) / timeline.totalDays) * 100,
+    leftPx: calendarDaysBetween(timeline.start, from) * timeline.pxPerDay,
+    widthPx: Math.max(timeline.pxPerDay, (calendarDaysBetween(from, to) + 1) * timeline.pxPerDay),
   };
 }
 

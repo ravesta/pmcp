@@ -13,6 +13,7 @@ import {
   reviseStageEstimate,
   setManualProgress,
   updateProjectInfo,
+  updateStage,
   updateStagePlanning,
   updateStageStatus,
   type CreateProjectInput,
@@ -355,5 +356,56 @@ describe('informasi dan status project (FR-11-02, FR-14-01)', () => {
     const next = await snapshot(projectId);
     const rejected = await updateProjectInfo(container.project, manager, { projectId, expectedVersion: next.version, info: { name: 'Proyek Aplikasi Baru', applicationIds: [appId, Number(other.id)] }, status: 'BACKLOG', statusReason: '' });
     expect(!rejected.ok && rejected.error.fields?.applicationIds).toBeDefined();
+  });
+});
+
+describe('Perbarui tahapan gabungan (Screen [016])', () => {
+  it.skipIf(!isPg)('menyimpan PIC, revisi, progres, dan status sekaligus dalam satu transaksi', async () => {
+    const { projectId } = await makeProject({ stages: { BA: { picIds: [rina.picId as number], estStart: '2026-10-19', estEnd: '2026-10-23' } } });
+    const ba = (await snapshot(projectId)).stages[0] as NonNullable<ProjectSnapshot['stages'][number]>;
+    const result = unwrap(
+      await updateStage(container.project, rina, {
+        stageId: ba.id,
+        expectedVersion: ba.version,
+        planning: { picIds: [rina.picId as number, sari.picId as number] },
+        revision: { newStart: '2026-10-19', newEnd: '2026-10-30', categoryId: revisionCategoryId, note: 'Scope bertambah' },
+        progress: { value: 40, note: '' },
+        status: { target: 'RUNNING', reason: '', note: '' },
+      }),
+    );
+    expect(result.saved).toEqual(['planning', 'revision', 'progress', 'status']);
+    expect(result.revisionSeq).toBe(1);
+    const after = (await snapshot(projectId)).stages[0];
+    expect(after).toMatchObject({ status: 'RUNNING', manualProgress: 40, estimate: { end: '2026-10-30' }, revisionCount: 1 });
+    expect(after?.assignees.map((a) => a.picId).sort()).toEqual([rina.picId, sari.picId].sort());
+  });
+
+  it.skipIf(!isPg)('atomik: bila satu bagian ditolak, bagian lain yang sudah diproses dibatalkan', async () => {
+    const { projectId } = await makeProject({ stages: { BA: { picIds: [rina.picId as number, sari.picId as number], estStart: '2026-10-19', estEnd: '2026-10-30' } } });
+    await insertCard(sari.picId as number, projectId, 'BA', { column: 'IN_PROGRESS', progress: 25 });
+    const before = (await snapshot(projectId)).stages[0] as NonNullable<ProjectSnapshot['stages'][number]>;
+    const rejected = await updateStage(container.project, rina, {
+      stageId: before.id,
+      expectedVersion: before.version,
+      revision: { newStart: '2026-10-19', newEnd: '2026-11-06', categoryId: revisionCategoryId, note: 'Perpanjang' },
+      progress: { value: 40, note: 'Kartu belum diperbarui' },
+      status: { target: 'DONE', reason: '', note: '' },
+    });
+    expect(!rejected.ok && rejected.error.rule).toBe('STAGE_HAS_OPEN_CARDS');
+    const after = (await snapshot(projectId)).stages[0];
+    expect(after).toMatchObject({ status: 'NOT_STARTED', manualProgress: null, revisionCount: 0, version: before.version });
+    expect(after?.estimate).toEqual({ start: '2026-10-19', end: '2026-10-30' });
+  });
+
+  it.skipIf(!isPg)('tanpa bagian yang diisi ditolak, versi lama ditolak, dan hak tetap dicek per bagian', async () => {
+    const { projectId } = await makeProject({ stages: { BA: { picIds: [rina.picId as number], estStart: '2026-10-19', estEnd: '2026-10-30' } } });
+    const ba = (await snapshot(projectId)).stages[0] as NonNullable<ProjectSnapshot['stages'][number]>;
+    const empty = await updateStage(container.project, rina, { stageId: ba.id, expectedVersion: ba.version });
+    expect(!empty.ok && empty.error.message).toBe('Tidak ada perubahan untuk disimpan.');
+    const stale = await updateStage(container.project, rina, { stageId: ba.id, expectedVersion: ba.version - 1, progress: { value: 10, note: '' } });
+    expect(!stale.ok && stale.error.code).toBe('CONFLICT');
+    const forbidden = await updateStage(container.project, sari, { stageId: ba.id, expectedVersion: ba.version, status: { target: 'RUNNING', reason: '', note: '' } });
+    expect(!forbidden.ok && forbidden.error.code).toBe('FORBIDDEN');
+    expect((await snapshot(projectId)).stages[0]?.version).toBe(ba.version);
   });
 });

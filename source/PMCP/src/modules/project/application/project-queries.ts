@@ -157,6 +157,19 @@ export async function getProjectFormOptions(deps: ProjectDeps): Promise<ProjectF
   return { applications, pics, revisionCategories };
 }
 
+/** Batas jumlah pilihan "Nama project" pada filter (menjaga ukuran halaman). */
+const PROJECT_OPTION_LIMIT = 500;
+
+/**
+ * Membaca pilihan "Nama project" untuk bar filter (kode dan nama, terbaru di atas).
+ * Masukan: dependensi. Keluaran: daftar pilihan, dibatasi jumlahnya.
+ * Efek samping: tidak ada (hanya baca).
+ * Rujukan: Screen [010] field 2 (Nama project, pilihan ganda dapat dicari), BL-41.
+ */
+export async function listProjectOptions(deps: ProjectDeps): Promise<Array<{ id: number; code: string; name: string }>> {
+  return deps.queries.listProjectOptions(PROJECT_OPTION_LIMIT);
+}
+
 /** Detail project: tampilan, riwayat revisi, dan pilihan formulir. */
 export interface ProjectDetail {
   readonly project: ProjectView;

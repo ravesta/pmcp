@@ -65,10 +65,12 @@ export function buildProjectWhere(filter: ProjectFilter, today: string): SqlWher
   }
   if (filter.projectIds) conditions.push(`p.id = ANY(${bind(filter.projectIds.map(BigInt), '::bigint[]')})`);
 
-  const incomplete =
-    'EXISTS (SELECT 1 FROM project_stage s WHERE s.project_id = p.id AND (s.est_start IS NULL OR NOT EXISTS (SELECT 1 FROM stage_assignment a WHERE a.stage_id = s.id)))';
+  const noPic = 'NOT EXISTS (SELECT 1 FROM stage_assignment a WHERE a.stage_id = s.id)';
+  const incomplete = `EXISTS (SELECT 1 FROM project_stage s WHERE s.project_id = p.id AND (s.est_start IS NULL OR ${noPic}))`;
   if (filter.completeness === 'INCOMPLETE') conditions.push(incomplete);
   if (filter.completeness === 'COMPLETE') conditions.push(`NOT ${incomplete}`);
+  if (filter.completeness === 'NO_PIC') conditions.push(`EXISTS (SELECT 1 FROM project_stage s WHERE s.project_id = p.id AND ${noPic})`);
+  if (filter.completeness === 'NO_TIMELINE') conditions.push('EXISTS (SELECT 1 FROM project_stage s WHERE s.project_id = p.id AND s.est_start IS NULL)');
 
   const stageConditions: string[] = [];
   if (filter.stage) stageConditions.push(`s.stage = ${bind(filter.stage, '::stage_t')}`);
@@ -197,6 +199,12 @@ export function createPrismaProjectQueries(prisma: PrismaClient): ProjectQueryRe
           assignedAt: row.assigned_at,
         };
       });
+    },
+
+    /** Pilihan nama project untuk filter, terbaru di atas dan dibatasi. Efek samping: tidak ada (hanya baca). */
+    async listProjectOptions(limit) {
+      const rows = await prisma.project.findMany({ select: { id: true, code: true, name: true }, orderBy: { id: 'desc' }, take: limit });
+      return rows.map((row) => ({ id: Number(row.id), code: row.code, name: row.name }));
     },
 
     /** Menandai penugasan PIC pada project sebagai sudah dilihat. Efek samping: UPDATE `stage_assignment.seen_at`. */

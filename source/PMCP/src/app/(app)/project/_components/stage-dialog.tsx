@@ -2,221 +2,181 @@
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useId, useState } from 'react';
+import Link from 'next/link';
+import { useState } from 'react';
 import type { ProjectFormOptions, StageStatus, StageView } from '@/modules/project';
-import { ActionForm, type ActionFormContext } from '@/ui/components/action-form';
+import { ActionDialog } from '@/ui/components/action-dialog';
 import { DateField } from '@/ui/components/date-field';
-import { formatDateOrDash, formatRange, formatShift, STAGE_STATUS_TEXT } from '@/ui/format/project-labels';
-import { stageAction } from '../actions';
-import { StagePlanFields } from './stage-plan-fields';
-
-/** Bagian dialog (satu tab, satu formulir, satu aksi). */
-type SectionKey = 'status' | 'progress' | 'planning' | 'revise';
+import { FieldsetBox } from '@/ui/components/fieldset-box';
+import { MultiSelectField } from '@/ui/components/multi-select-field';
+import { formatRange, revisionHint, STAGE_FULL_TEXT, STAGE_STATUS_TEXT, varianceLines } from '@/ui/format/project-labels';
+import { updateStageAction } from '../actions';
 
 /** Properti dialog Perbarui Tahapan. */
 interface StageDialogProps {
+  readonly projectCode: string;
   readonly projectName: string;
   readonly stage: StageView;
   readonly options: ProjectFormOptions;
   readonly revisionThreshold: number;
   readonly isManager: boolean;
+  /** True bila dialog dibuka dari halaman selain Detail Project (menampilkan tautan "Lihat detail project"). */
+  readonly showDetailLink: boolean;
   readonly onClose: () => void;
 }
 
 /**
- * Menentukan tab yang tersedia bagi pelaku pada tahapan ini menurut hak yang dihitung server.
- * Masukan: tahapan siap tampil. Keluaran: daftar kunci tab berurutan.
+ * Menentukan status yang dapat dipilih pada dialog: semua status untuk tahapan yang belum selesai; untuk tahapan
+ * Selesai hanya Manager yang dapat membukanya kembali (menjadi Berjalan).
+ * Masukan: tahapan dan penanda Manager. Keluaran: daftar status yang ditawarkan.
  * Efek samping: tidak ada (fungsi murni).
- * Rujukan: FR-03-01, FR-05-01, FR-06-01 (PIC BA tidak melihat Perbarui status pada Development), FR-13-01.
+ * Rujukan: FR-05-01 butir 7 dan 9 (membuka kembali hanya oleh Manager dengan catatan).
  */
-function availableSections(stage: StageView): SectionKey[] {
-  const sections: SectionKey[] = [];
-  if (stage.rights.update || stage.rights.reopen) sections.push('status');
-  if (stage.rights.update && stage.status !== 'DONE') sections.push('progress');
-  if (stage.rights.editAssignees || stage.rights.fillTimeline) sections.push('planning');
-  if (stage.rights.update && stage.estimate && stage.status !== 'DONE') sections.push('revise');
-  return sections;
+function statusChoices(stage: StageView, isManager: boolean): StageStatus[] {
+  if (stage.status === 'DONE') return isManager ? ['DONE', 'RUNNING'] : ['DONE'];
+  return ['NOT_STARTED', 'RUNNING', 'HELD', 'DONE'];
 }
 
-/** Nama tab untuk pembaca layar dan tampilan. */
-const SECTION_LABEL: Readonly<Record<SectionKey, string>> = {
-  status: 'Status',
-  progress: 'Progres',
-  planning: 'PIC dan timeline',
-  revise: 'Revisi estimasi',
-};
-
 /**
- * Ringkasan informasi estimasi tahapan di atas dialog: estimasi terkini, awal, jumlah revisi, dan selisih.
- * Masukan: tahapan. Keluaran: blok teks hanya baca.
+ * Kotak ringkasan estimasi di bagian atas dialog: estimasi terkini, jumlah revisi, estimasi awal, dan keterangan selisih.
+ * Masukan: tahapan. Keluaran: kotak hanya baca.
  * Efek samping: tidak ada (komponen murni).
- * Rujukan: Screen [016] field 1, FR-13-05 butir 9.
+ * Rujukan: Screen [016] field 1, mockup v0.2 (planInfo).
  */
-function EstimateSummary({ stage }: { readonly stage: StageView }) {
-  const shift = formatShift(stage.shiftWorkdays);
+function PlanInfo({ stage }: { readonly stage: StageView }) {
+  const lines = varianceLines(stage);
+  if (!stage.estimate) return <Box sx={{ bgcolor: 'var(--soft)', borderRadius: 1, p: '8px 12px' }}>Belum ada timeline.</Box>;
   return (
-    <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.5 }}>
-      <Typography variant="body2">Estimasi terkini: {formatRange(stage.estimate)}</Typography>
-      <Typography variant="body2" color="text.secondary">
-        Estimasi awal: {formatRange(stage.baseline, '-')} · Revisi: {stage.revisionCount}{shift ? ` · ${shift}` : ''}
-      </Typography>
+    <Box sx={{ bgcolor: 'var(--soft)', borderRadius: 1, p: '8px 12px', fontSize: 13 }}>
+      Estimasi terkini <b className="mono">{formatRange(stage.estimate)}</b>
+      {stage.revisionCount > 0 ? ` (revisi ${stage.revisionCount}×)` : ''}
+      {stage.baseline && (stage.baseline.start !== stage.estimate.start || stage.baseline.end !== stage.estimate.end) ? <><br />Estimasi awal <span className="mono">{formatRange(stage.baseline)}</span></> : null}
+      {lines.map((line) => <div key={line} style={{ color: 'var(--warn)' }}>{line}</div>)}
     </Box>
   );
 }
 
 /**
- * Tab Status: mengubah status tahapan (hold dengan alasan, selesai dengan catatan Manager bila ada kartu terbuka)
- * atau membuka kembali tahapan Selesai (Manager dengan catatan).
- * Masukan: tahapan, penanda Manager, dan konteks formulir. Keluaran: isian tab.
- * Efek samping: menyimpan status tujuan di state komponen agar isian alasan dan catatan tampil sesuai.
- * Rujukan: FR-05-01 butir 3 sampai 9, FR-13-02, Screen [016] field 2, 6, 7, dan 13.
+ * Dialog Perbarui Tahapan (Screen [016]) seperti mockup v0.2: SATU dialog dengan satu tombol Simpan yang menyimpan
+ * semua bagian yang diubah (status, progres, PIC, timeline, revisi estimasi) dalam satu transaksi. Bagian yang tampil
+ * mengikuti hak pelaku (dihitung server); hak sebenarnya dicek ulang di server saat menyimpan. Nilai awal dikirim
+ * sebagai isian tersembunyi agar server hanya menyimpan bagian yang benar-benar berubah.
+ * Masukan: kode dan nama project, tahapan, pilihan master, batas revisi, penanda Manager, penanda tautan detail, dan
+ * penutup. Keluaran: dialog.
+ * Efek samping: mengirim `updateStageAction` saat Simpan; menutup dialog setelah berhasil.
+ * Rujukan: Screen [016], FR-03-01, FR-05-01, FR-05-02, FR-13-01, FR-13-04, handoff UX/UI §4 (Dialog), §7, §9.
  */
-function StatusFields({ stage, isManager, context }: { readonly stage: StageView; readonly isManager: boolean; readonly context: ActionFormContext }) {
-  const reopening = stage.status === 'DONE';
-  const [target, setTarget] = useState<StageStatus>(reopening ? 'RUNNING' : stage.status);
-  const errors = context.fieldErrors;
+export function StageDialog({ projectCode, projectName, stage, options, revisionThreshold, isManager, showDetailLink, onClose }: StageDialogProps) {
+  const canStatus = stage.rights.update || stage.rights.reopen;
+  const choices = statusChoices(stage, isManager);
+  const [target, setTarget] = useState<StageStatus>(stage.status);
+  const picChoices = options.pics.filter((pic) => pic.stage === stage.kind).map((pic) => ({ id: pic.id, label: pic.name }));
+  const { progress } = stage;
+  const currentProgress = progress.manual ?? progress.system;
+  const heldCategory = options.revisionCategories.find((c) => c.name === 'Ditahan lalu dilanjutkan');
+  const lateCategory = options.revisionCategories.find((c) => c.name === 'Terlambat dari estimasi');
+  const preselect = stage.status === 'HELD' ? heldCategory : stage.lateness.isLate ? lateCategory : undefined;
+  const canRevise = stage.rights.update && stage.estimate !== null;
+  const reopening = stage.status === 'DONE' && target === 'RUNNING';
+
   return (
-    <>
-      {reopening ? (
+    <ActionDialog
+      title="Perbarui tahapan"
+      submitLabel="Simpan"
+      action={updateStageAction}
+      onClose={onClose}
+      maxWidth="sm"
+      hidden={{
+        stageId: stage.stageId,
+        expectedVersion: stage.version,
+        statusInitial: stage.status,
+        holdReasonInitial: stage.holdReason ?? '',
+        progressInitial: currentProgress === null ? '' : String(currentProgress),
+        hasManual: progress.manual !== null ? '1' : '0',
+        picIdsInitial: stage.assignees.map((a) => a.picId).join(','),
+        ...(stage.rights.editAssignees ? { picsTouched: 1 } : {}),
+      }}
+    >
+      {({ fieldErrors }) => (
         <>
-          <input type="hidden" name="target" value="RUNNING" />
-          <Typography variant="body2">Tahapan sudah Selesai. Membuka kembali mengembalikan status ke Berjalan dan mengosongkan tanggal selesai aktual.</Typography>
-          <TextField name="note" label="Catatan buka kembali" required multiline rows={2} error={Boolean(errors.note)} helperText={errors.note ?? 'Minimal 3 karakter.'} />
-        </>
-      ) : (
-        <>
-          <TextField select name="target" label="Status" value={target} onChange={(event) => setTarget(event.target.value as StageStatus)} slotProps={{ select: { native: true } }}>
-            {(Object.keys(STAGE_STATUS_TEXT) as StageStatus[]).map((value) => <option key={value} value={value}>{STAGE_STATUS_TEXT[value]}</option>)}
-          </TextField>
-          {target === 'HELD' ? <TextField name="reason" label="Alasan ditahan" required multiline rows={2} defaultValue={stage.holdReason ?? ''} error={Boolean(errors.reason)} helperText={errors.reason ?? 'Wajib. Maksimal 300 karakter.'} /> : null}
-          {target === 'DONE' && isManager ? <TextField name="note" label="Catatan melewati syarat kartu terbuka" multiline rows={2} error={Boolean(errors.note)} helperText={errors.note ?? 'Wajib (minimal 3 karakter) hanya bila masih ada kartu terbuka.'} /> : null}
+          <Typography variant="body2" color="text.secondary">{projectName} | {STAGE_FULL_TEXT[stage.kind]}</Typography>
+          {showDetailLink ? <Link href={`/project/${projectCode}`} style={{ color: 'var(--accent)', alignSelf: 'flex-start' }}>Lihat detail project</Link> : null}
+          <PlanInfo stage={stage} />
+
+          {canStatus ? (
+            <>
+              <TextField select name="target" label="Status" value={target} onChange={(event) => setTarget(event.target.value as StageStatus)} slotProps={{ select: { native: true } }} error={Boolean(fieldErrors['status.target'])}>
+                {choices.map((value) => <option key={value} value={value}>{value === 'RUNNING' && stage.status === 'DONE' ? 'Berjalan (buka kembali)' : STAGE_STATUS_TEXT[value]}</option>)}
+              </TextField>
+              {target === 'HELD' ? <TextField name="reason" label="Alasan ditahan" required multiline rows={2} defaultValue={stage.holdReason ?? ''} placeholder="Mengapa tahapan ini ditahan?" error={Boolean(fieldErrors['status.reason'])} helperText={fieldErrors['status.reason']} /> : null}
+              {(target === 'DONE' && isManager && stage.status !== 'DONE') || reopening ? (
+                <TextField
+                  name="statusNote"
+                  label={reopening ? 'Catatan buka kembali' : 'Catatan melewati syarat kartu terbuka'}
+                  required={reopening}
+                  multiline
+                  rows={2}
+                  placeholder={reopening ? 'Mengapa tahapan dibuka kembali?' : 'Wajib bila masih ada kartu terbuka milik PIC'}
+                  error={Boolean(fieldErrors['status.note'])}
+                  helperText={fieldErrors['status.note'] ?? 'Minimal 3 karakter.'}
+                />
+              ) : null}
+            </>
+          ) : null}
+
+          {canStatus && stage.status !== 'DONE' ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 500, color: 'var(--muted)' }}>Progres tahapan</Typography>
+              <Box sx={{ bgcolor: 'var(--soft)', borderRadius: 1, p: '8px 12px', fontSize: 13 }}>
+                {progress.cardCount === 0
+                  ? 'Belum ada kartu rencana untuk tahapan ini, progres diisi manual.'
+                  : `Hitungan sistem: ${progress.system}% dari ${progress.cardCount} kartu rencana.`}
+                {` Diharapkan menurut laju: ${progress.expected}%. Berlaku: ${progress.effective}%${progress.manual !== null ? ' (disesuaikan manual)' : ''}.`}
+              </Box>
+              <TextField name="progressValue" type="number" label="Sesuaikan manual (%) - kosongkan untuk memakai hitungan sistem" defaultValue={currentProgress ?? ''} error={Boolean(fieldErrors['progress.value'])} helperText={fieldErrors['progress.value'] ?? 'Bilangan bulat 0 sampai 99. Progres 100% hanya lewat status Selesai.'} slotProps={{ htmlInput: { min: 0, max: 99, step: 1 } }} />
+              <TextField name="progressNote" label="Catatan penyesuaian manual" multiline rows={2} defaultValue={progress.manualNote ?? ''} placeholder="Wajib bila angka manual berbeda dari hitungan" error={Boolean(fieldErrors['progress.note'])} helperText={fieldErrors['progress.note']} />
+              {progress.manual !== null ? <FormControlLabel control={<Checkbox name="reset" value="1" />} label="Kembali ke hitungan sistem" /> : null}
+            </Box>
+          ) : null}
+
+          {stage.rights.editAssignees ? (
+            <FieldsetBox legend="PIC (boleh lebih dari satu)">
+              <MultiSelectField name="picIds" label="PIC" options={picChoices} defaultIds={stage.assignees.map((a) => a.picId)} error={fieldErrors['planning.pics']} />
+            </FieldsetBox>
+          ) : null}
+
+          {stage.rights.fillTimeline ? (
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+              <DateField name="estStart" label="Estimasi mulai (dd/mm/yyyy)" error={fieldErrors['planning.estimate']} helperText="Estimasi pertama menjadi estimasi awal." />
+              <DateField name="estEnd" label="Estimasi selesai (dd/mm/yyyy)" />
+            </Box>
+          ) : null}
+
+          {canRevise ? (
+            <FieldsetBox legend="Revisi estimasi" hint="kosongkan bila tidak berubah">
+              {stage.revisionAtLimit ? <Alert severity="warning" role="alert">Peringatan: tahapan ini sudah direvisi {stage.revisionCount}× (batas peringatan {revisionThreshold}×). Tinjau penyebab perubahan jadwal sebelum merevisi lagi.</Alert> : null}
+              <Typography variant="body2">{revisionHint(stage.status === 'HELD', target, stage.lateness.isLate ? stage.lateness.daysPastCurrent : 0)}</Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+                <DateField name="newStart" label="Estimasi mulai baru" error={fieldErrors['revision.dates']} />
+                <DateField name="newEnd" label="Estimasi selesai baru" />
+              </Box>
+              <TextField select name="categoryId" label="Kategori alasan" defaultValue={preselect ? String(preselect.id) : ''} slotProps={{ select: { native: true }, inputLabel: { shrink: true } }} error={Boolean(fieldErrors['revision.category'])} helperText={fieldErrors['revision.category']}>
+                <option value="">Pilih kategori</option>
+                {options.revisionCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+              </TextField>
+              <TextField name="revisionNote" label="Catatan alasan" multiline rows={2} placeholder="Jelaskan penyebab dan dasar estimasi baru" error={Boolean(fieldErrors['revision.note'])} helperText={fieldErrors['revision.note'] ?? 'Kategori dan catatan wajib bila estimasi diubah. Estimasi awal tidak berubah.'} />
+            </FieldsetBox>
+          ) : null}
+
+          <Typography variant="body2" color="text.secondary">
+            {isManager ? 'Perubahan dicatat di jejak perubahan.' : 'Semua perubahan dicatat di jejak perubahan. Status dan progres hanya dapat diubah PIC tahapan ini atau Manager.'}
+          </Typography>
         </>
       )}
-    </>
-  );
-}
-
-/**
- * Tab Progres: menyesuaikan progres tahapan secara manual (0 sampai 99) atau mengembalikannya ke hitungan sistem.
- * Masukan: tahapan dan konteks formulir. Keluaran: isian tab beserta pembanding hitungan sistem dan laju.
- * Efek samping: tidak ada selain state isian.
- * Rujukan: FR-05-02 butir 1 sampai 6, Screen [016] field 3 sampai 5.
- */
-function ProgressFields({ stage, context }: { readonly stage: StageView; readonly context: ActionFormContext }) {
-  const { progress } = stage;
-  const errors = context.fieldErrors;
-  return (
-    <>
-      <Typography variant="body2">
-        Hitungan sistem: {progress.system === null ? 'belum ada kartu' : `${progress.system}%`} · Diharapkan menurut laju: {progress.expected}% · Berlaku: {progress.effective}%
-        {progress.manual !== null ? ' (disesuaikan manual)' : ''}
-      </Typography>
-      <TextField name="value" type="number" label="Progres tahapan (%)" defaultValue={progress.manual ?? progress.system ?? ''} error={Boolean(errors.value)} helperText={errors.value ?? 'Bilangan bulat 0 sampai 99. Progres 100% hanya lewat status Selesai.'} slotProps={{ htmlInput: { min: 0, max: 99 } }} />
-      <TextField name="note" label="Catatan penyesuaian manual" multiline rows={2} defaultValue={progress.manualNote ?? ''} error={Boolean(errors.note)} helperText={errors.note ?? (progress.cardCount > 0 ? 'Wajib (minimal 3 karakter) bila angka berbeda dari nilai yang berlaku.' : 'Tahapan tanpa kartu diisi langsung tanpa catatan.')} />
-      {progress.manual !== null ? <FormControlLabel control={<Checkbox name="reset" value="1" />} label="Kembali ke hitungan sistem" /> : null}
-    </>
-  );
-}
-
-/**
- * Tab Revisi estimasi: tanggal baru, kategori alasan (master aktif), dan catatan. Peringatan tampil bila revisi sudah
- * mencapai batas peringatan; peringatan tidak memblokir.
- * Masukan: tahapan, pilihan kategori, batas peringatan, dan konteks formulir. Keluaran: isian tab.
- * Efek samping: tidak ada selain state isian.
- * Rujukan: FR-13-01, FR-13-03 butir 2 (kategori terpilih otomatis bila terlambat), FR-13-04, Screen [016] field 10 sampai 12.
- */
-function ReviseFields({ stage, options, threshold, context }: { readonly stage: StageView; readonly options: ProjectFormOptions; readonly threshold: number; readonly context: ActionFormContext }) {
-  const errors = context.fieldErrors;
-  const lateCategory = stage.lateness.isLate ? options.revisionCategories.find((c) => c.name === 'Terlambat dari estimasi') : undefined;
-  return (
-    <>
-      {stage.revisionAtLimit ? <Alert severity="warning">Tahapan ini sudah direvisi {stage.revisionCount} kali (batas peringatan {threshold}). Revisi tetap dapat disimpan.</Alert> : null}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-        <DateField name="newStart" label="Estimasi mulai baru" defaultValue={stage.estimate?.start} error={errors.dates} />
-        <DateField name="newEnd" label="Estimasi selesai baru" defaultValue={stage.estimate?.end} />
-      </Box>
-      <TextField select name="categoryId" label="Kategori alasan" defaultValue={lateCategory ? String(lateCategory.id) : ''} slotProps={{ select: { native: true }, inputLabel: { shrink: true } }} error={Boolean(errors.category)} helperText={errors.category}>
-        <option value="">Pilih kategori</option>
-        {options.revisionCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-      </TextField>
-      <TextField name="note" label="Catatan alasan" required multiline rows={2} error={Boolean(errors.note)} helperText={errors.note ?? 'Minimal 3 karakter, maksimal 300.'} />
-    </>
-  );
-}
-
-/**
- * Dialog Perbarui Tahapan (Screen [016]) dengan tab per aksi: Status, Progres, PIC dan timeline, Revisi estimasi.
- * Tab yang tampil mengikuti hak pelaku (dihitung server); setiap tab adalah formulir sendiri dan menutup dialog
- * setelah berhasil. Hak sebenarnya tetap dicek ulang di server saat menyimpan.
- * Masukan: nama project, tahapan, pilihan master, batas revisi, penanda Manager, dan penutup. Keluaran: dialog.
- * Efek samping: mengirim `stageAction` dengan `intent` sesuai tab; menutup dialog setelah sukses.
- * Rujukan: Screen [016], FR-03-01, FR-05-01, FR-05-02, FR-13-01, handoff UX/UI §4 (Dialog, Tabs) dan §9.
- */
-export function StageDialog({ projectName, stage, options, revisionThreshold, isManager, onClose }: StageDialogProps) {
-  const sections = availableSections(stage);
-  const [section, setSection] = useState<SectionKey>(sections[0] ?? 'status');
-  const titleId = useId();
-  const hidden = { stageId: stage.stageId, expectedVersion: stage.version };
-  const picChoices = options.pics.filter((pic) => pic.stage === stage.kind).map((pic) => ({ id: pic.id, label: pic.name }));
-
-  return (
-    <Dialog open onClose={onClose} fullWidth maxWidth="sm" aria-labelledby={titleId}>
-      <DialogTitle id={titleId}>Perbarui tahapan {stage.label} · {projectName}</DialogTitle>
-      <DialogContent sx={{ pt: '8px !important', display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <EstimateSummary stage={stage} />
-        {sections.length === 0 ? <Alert severity="info">Anda tidak memiliki hak mengubah tahapan ini.</Alert> : (
-          <>
-            <Tabs value={section} onChange={(_event, value: SectionKey) => setSection(value)} variant="scrollable" scrollButtons="auto" aria-label="Bagian perubahan tahapan">
-              {sections.map((key) => <Tab key={key} value={key} label={SECTION_LABEL[key]} />)}
-            </Tabs>
-            {section === 'status' ? (
-              <ActionForm action={stageAction} submitLabel={stage.status === 'DONE' ? 'Buka kembali' : 'Simpan status'} hidden={{ ...hidden, intent: 'status' }} showSuccess={false} onSuccess={onClose}>
-                {(context) => <StatusFields stage={stage} isManager={isManager} context={context} />}
-              </ActionForm>
-            ) : null}
-            {section === 'progress' ? (
-              <ActionForm action={stageAction} submitLabel="Simpan progres" hidden={{ ...hidden, intent: 'progress' }} showSuccess={false} onSuccess={onClose}>
-                {(context) => <ProgressFields stage={stage} context={context} />}
-              </ActionForm>
-            ) : null}
-            {section === 'planning' ? (
-              <ActionForm action={stageAction} submitLabel="Simpan perencanaan" hidden={{ ...hidden, intent: 'planning', ...(stage.rights.editAssignees ? { picsTouched: 1 } : {}) }} showSuccess={false} onSuccess={onClose}>
-                {(context) => (
-                  <StagePlanFields
-                    title={`Tahapan ${stage.label}`}
-                    names={{ pics: 'picIds', start: 'estStart', end: 'estEnd' }}
-                    picOptions={picChoices}
-                    defaultPicIds={stage.assignees.map((a) => a.picId)}
-                    showPics={stage.rights.editAssignees}
-                    showDates={stage.rights.fillTimeline}
-                    errors={{ pics: context.fieldErrors.pics, estimate: context.fieldErrors.estimate }}
-                  />
-                )}
-              </ActionForm>
-            ) : null}
-            {section === 'revise' ? (
-              <ActionForm action={stageAction} submitLabel="Simpan revisi" hidden={{ ...hidden, intent: 'revise' }} showSuccess={false} onSuccess={onClose}>
-                {(context) => <ReviseFields stage={stage} options={options} threshold={revisionThreshold} context={context} />}
-              </ActionForm>
-            ) : null}
-          </>
-        )}
-        <Typography variant="caption" color="text.secondary">Mulai aktual: {formatDateOrDash(stage.actualStart)} · Selesai aktual: {formatDateOrDash(stage.actualEnd)}</Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Tutup</Button>
-      </DialogActions>
-    </Dialog>
+    </ActionDialog>
   );
 }

@@ -17,3 +17,15 @@ export interface Transactor {
   /** Menjalankan `work`; bila melempar galat, seluruh perubahan dibatalkan. */
   run<T>(work: (tx: TxContext) => Promise<T>): Promise<T>;
 }
+
+/**
+ * Membuat `Transactor` yang bergabung ke transaksi yang sudah berjalan: `run` langsung menjalankan pekerjaan pada
+ * transaksi itu tanpa membuka transaksi baru. Dipakai use case gabungan agar beberapa use case yang masing-masing
+ * memanggil `transactor.run` tetap berada dalam SATU transaksi (semua atau tidak sama sekali).
+ * Masukan: transaksi yang sedang berjalan. Keluaran: `Transactor` yang bergabung.
+ * Efek samping: tidak ada pada pembuatan; pekerjaan yang dijalankan ikut commit atau rollback bersama transaksi induk.
+ * Rujukan: database-design §9 (satu use case mutasi = satu transaksi), Technical Design §6.1.
+ */
+export function joinTransaction(tx: TxContext): Transactor {
+  return { run: (work) => work(tx) };
+}

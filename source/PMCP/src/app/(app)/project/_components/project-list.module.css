@@ -1,0 +1,14 @@
+/* Gaya Daftar Project, mengikuti kelas lt, stl, pn pada mockup v0.2. */
+.wrap { overflow-x: auto; }
+.lt { border-collapse: collapse; width: 100%; min-width: 900px; }
+.lt th, .lt td { text-align: left; padding: 10px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.lt th { font-size: 12px; color: var(--muted); font-weight: 600; background: var(--soft); white-space: nowrap; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.small { font-size: 12px; }
+.muted { color: var(--muted); }
+.name { color: var(--ink); text-decoration: none; font-weight: 600; }
+.name:hover { color: var(--accent); text-decoration: underline; }
+.stl { display: grid; grid-template-columns: 30px max-content max-content; gap: 6px; justify-content: start; align-items: center; padding: 1px 0; font-size: 12px; }
+.stn { font-weight: 500; }
+.stack { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.empty { padding: 24px; text-align: center; color: var(--muted); }

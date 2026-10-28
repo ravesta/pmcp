@@ -5,6 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
 import type { ReactNode } from 'react';
 import { createAppTheme } from './theme';
+import { ThemeTokens } from './theme-tokens';
 
 const theme = createAppTheme();
 
@@ -19,6 +20,7 @@ export function ThemeRegistry({ children }: { children: ReactNode }) {
     <AppRouterCacheProvider>
       <ThemeProvider theme={theme} defaultMode="system">
         <CssBaseline />
+        <ThemeTokens />
         {children}
       </ThemeProvider>
     </AppRouterCacheProvider>

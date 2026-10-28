@@ -1,0 +1,35 @@
+/* Gaya Detail Project dan Buat project, mengikuti kelas crumb, dgrid, di, stages3, sbox, at pada mockup v0.2. */
+.crumb { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.crumb a { color: var(--accent); }
+.dgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 20px; margin: 0; }
+.di { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.di.wide { grid-column: 1 / -1; }
+.di dt { font-size: 12px; color: var(--muted); }
+.di dd { margin: 0; word-break: break-word; }
+.stages3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.sbox { border: 1px solid var(--line); border-top: 3px solid var(--ba); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 12px; background: var(--surface); min-width: 0; scroll-margin-top: 16px; }
+.sbox.DEV { border-top-color: var(--dev); }
+.sbox.QA { border-top-color: var(--qa); }
+.sbt { font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.label { font-size: 12px; color: var(--muted); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.small { font-size: 12px; }
+.muted { color: var(--muted); }
+.bar { height: 6px; background: var(--soft); border-radius: 3px; overflow: hidden; flex: 1; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.row { display: flex; gap: 8px; align-items: center; }
+.tag { background: var(--run-bg); color: var(--run); border-radius: 10px; padding: 0 8px; font-size: 12px; line-height: 20px; margin-right: 4px; display: inline-block; }
+.wn { padding: 8px 12px; border-radius: 6px; font-size: 13px; background: var(--warn-bg); color: var(--warn); }
+.warnText { color: var(--warn); }
+.lateText { color: var(--late); }
+.holdText { color: var(--hold); }
+.at { border-collapse: collapse; width: 100%; min-width: 560px; }
+.at th, .at td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.at th { font-size: 12px; color: var(--muted); font-weight: 600; background: var(--soft); white-space: nowrap; }
+.wrap { overflow-x: auto; }
+.fgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px; }
+.span2 { grid-column: span 2; }
+.span4 { grid-column: 1 / -1; }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+@media (max-width: 900px) { .stages3 { grid-template-columns: 1fr; } .dgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .fgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .dgrid, .fgrid { grid-template-columns: 1fr; } .span2 { grid-column: auto; } }

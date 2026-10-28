@@ -264,7 +264,7 @@ export interface ProjectFilter {
   readonly stage?: StageKind;
   readonly stageStatus?: StageStatusFilter;
   readonly projectType?: ProjectType;
-  readonly completeness?: 'COMPLETE' | 'INCOMPLETE';
+  readonly completeness?: 'COMPLETE' | 'INCOMPLETE' | 'NO_PIC' | 'NO_TIMELINE';
   /** "Hanya milik saya": menyaring tahapan milik PIC ini. */
   readonly mineOnlyPicId?: number;
   /** Pembatasan id project (dipakai filter turunan seperti Tertinggal). */
@@ -310,6 +310,8 @@ export interface ProjectQueryRepository {
   listRevisionsOfProject(projectId: number): Promise<RevisionRow[]>;
   /** Daftar Assignment baru (belum dilihat) milik PIC. */
   listNewAssignments(picId: number): Promise<NewAssignmentRow[]>;
+  /** Pilihan "Nama project" untuk filter: id, kode, dan nama, terbaru di atas (dibatasi jumlahnya). */
+  listProjectOptions(limit: number): Promise<Array<{ id: number; code: string; name: string }>>;
   /** Menandai seluruh penugasan PIC pada project itu sebagai sudah dilihat; mengembalikan jumlah yang berubah. */
   markAssignmentsSeen(projectId: number, picId: number, now: Date): Promise<number>;
 }

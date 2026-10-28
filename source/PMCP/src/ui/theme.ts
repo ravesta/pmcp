@@ -41,6 +41,10 @@ export function createAppTheme() {
     typography: {
       fontFamily: '"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif',
       fontSize: 14,
+      // ukuran dasar 14px seperti mockup v0.2 (body{font-size:14px}); tanpa ini MUI memakai 16px
+      body1: { fontSize: '0.875rem', lineHeight: 1.45 },
+      body2: { fontSize: '0.8125rem', lineHeight: 1.45 },
+      caption: { fontSize: '0.75rem' },
       h1: { fontSize: '1.375rem', fontWeight: 600 },
       h2: { fontSize: '1.0625rem', fontWeight: 600 },
       h3: { fontSize: '0.9375rem', fontWeight: 600 },

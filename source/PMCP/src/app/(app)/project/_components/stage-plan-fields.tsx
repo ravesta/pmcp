@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { DateField } from '@/ui/components/date-field';
 import { MultiSelectField, type Choice } from '@/ui/components/multi-select-field';
+import styles from './detail.module.css';
 
 /** Nama isian formulir untuk PIC dan tanggal (berbeda antara Buat project dan dialog tahapan). */
 export interface StagePlanNames {
@@ -25,6 +26,8 @@ interface StagePlanFieldsProps {
   readonly defaultStart?: string | null;
   readonly defaultEnd?: string | null;
   readonly errors?: { readonly pics?: string; readonly estimate?: string };
+  /** Tahapan untuk garis warna kotak (BA/DEV/QA); tanpa nilai, tampil tanpa kotak berwarna. */
+  readonly kind?: 'BA' | 'DEV' | 'QA';
   /** Menampilkan isian PIC (bawaan true). */
   readonly showPics?: boolean;
 }
@@ -36,10 +39,10 @@ interface StagePlanFieldsProps {
  * Efek samping: tidak ada selain state isian di komponen anak.
  * Rujukan: FR-02-02, FR-03-01, Screen [013] field 12 dan 13, Screen [016] field 8 dan 9.
  */
-export function StagePlanFields({ title, names, picOptions, defaultPicIds, showDates, defaultStart, defaultEnd, errors = {}, showPics = true }: StagePlanFieldsProps) {
+export function StagePlanFields({ title, names, picOptions, defaultPicIds, showDates, defaultStart, defaultEnd, errors = {}, showPics = true, kind }: StagePlanFieldsProps) {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-      <Typography variant="h3">{title}</Typography>
+    <Box className={kind ? `${styles.sbox} ${styles[kind]}` : undefined} sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      <Typography variant="h3" sx={{ fontSize: 13, fontWeight: 600 }}>{title}</Typography>
       {showPics ? <MultiSelectField name={names.pics} label="PIC (boleh lebih dari satu)" options={picOptions} defaultIds={defaultPicIds} error={errors.pics} /> : null}
       {showDates ? (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>

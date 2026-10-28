@@ -1,18 +1,17 @@
 'use client';
 
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
 import Link from 'next/link';
 import { useState } from 'react';
 import type { ProjectFormOptions } from '@/modules/project';
+import { LinkButton } from '@/ui/components/link-controls';
 import { ActionForm } from '@/ui/components/action-form';
+import { Card, CardHeader, Section } from '@/ui/components/card';
 import { PROJECT_STATUS_TEXT } from '@/ui/format/project-labels';
 import { createProjectAction } from '../actions';
+import styles from './detail.module.css';
 import { ProjectInfoFields } from './project-info-fields';
 import { StagePlanFields } from './stage-plan-fields';
-import { LinkButton } from '@/ui/components/link-controls';
 
 /** Tahapan yang ditampilkan pada formulir, berurutan (BL-02). */
 const STAGES = [
@@ -34,7 +33,13 @@ export function CreateProjectForm({ options }: { readonly options: ProjectFormOp
   const [resetKey, setResetKey] = useState(0);
   const picChoices = (kind: string) => options.pics.filter((pic) => pic.stage === kind).map((pic) => ({ id: pic.id, label: pic.name }));
   return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
+    <Card>
+      <div className={styles.crumb}>
+        <Link href="/project?v=daftar">Daftar Project</Link>
+        <span aria-hidden> / </span>
+        <span>Project baru</span>
+      </div>
+      <CardHeader level={1} title="Buat project" subtitle="Isi informasi project dan, bila sudah ada, PIC serta estimasi tiap tahapan." />
       <ActionForm
         key={resetKey}
         action={createProjectAction}
@@ -48,21 +53,23 @@ export function CreateProjectForm({ options }: { readonly options: ProjectFormOp
       >
         {({ fieldErrors }) => (
           <>
-            <Typography variant="h2">Informasi project</Typography>
-            <ProjectInfoFields
-              applications={options.applications.map((app) => ({ id: app.id, label: app.name }))}
-              statusChoices={CREATE_STATUSES}
-              fieldErrors={fieldErrors}
-            />
-            <Typography variant="h2">Perencanaan tahapan</Typography>
-            <Typography variant="body2" color="text.secondary">
-              PIC dan estimasi boleh dikosongkan dan dilengkapi nanti. Estimasi pertama yang diisi menjadi estimasi awal. Tanggal antar tahapan
-              boleh tumpang tindih. Status awal yang dipilih: {PROJECT_STATUS_TEXT.BACKLOG} bila tidak diubah.
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Section title="Informasi project">
+              <ProjectInfoFields
+                applications={options.applications.map((app) => ({ id: app.id, label: app.name }))}
+                statusChoices={CREATE_STATUSES}
+                fieldErrors={fieldErrors}
+              />
+            </Section>
+            <Section title="Perencanaan tahapan">
+              <p className={styles.hint}>
+                PIC dan estimasi boleh dikosongkan dan dilengkapi nanti. Estimasi pertama yang diisi menjadi estimasi awal. Tanggal antar tahapan
+                boleh tumpang tindih. Status awal: {PROJECT_STATUS_TEXT.BACKLOG} bila tidak diubah.
+              </p>
+              <div className={styles.stages3}>
               {STAGES.map(({ kind, title }) => (
                 <StagePlanFields
                   key={kind}
+                  kind={kind}
                   title={title}
                   names={{ pics: `pics.${kind}`, start: `estStart.${kind}`, end: `estEnd.${kind}` }}
                   picOptions={picChoices(kind)}
@@ -70,10 +77,11 @@ export function CreateProjectForm({ options }: { readonly options: ProjectFormOp
                   errors={{ pics: fieldErrors[`pics.${kind}`], estimate: fieldErrors[`estimate.${kind}`] }}
                 />
               ))}
-            </Box>
+              </div>
+            </Section>
           </>
         )}
       </ActionForm>
-    </Paper>
+    </Card>
   );
 }

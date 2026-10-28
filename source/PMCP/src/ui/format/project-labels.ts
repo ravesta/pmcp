@@ -8,7 +8,7 @@ import type { CompletionVerdict, DisplayStatus, Estimate, ProjectStatus, Project
 import { formatDisplayDate } from '@/shared/iso-date';
 
 /** Nada warna yang dikenal tema (dipetakan ke warna MUI oleh `ToneChip`). */
-export type Tone = 'ok' | 'warn' | 'late' | 'hold' | 'info' | 'neutral';
+export type Tone = 'ok' | 'warn' | 'late' | 'hold' | 'info' | 'neutral' | 'backlog' | 'cancel' | 'rev';
 
 /** Teks dan nada sebuah penanda. */
 export interface Badge {
@@ -36,6 +36,9 @@ export const STAGE_STATUS_TEXT: Readonly<Record<StageStatus, string>> = {
   DONE: 'Selesai',
 };
 
+/** Nama lengkap tahapan untuk label baris Gantt dan filter (mockup v0.2). */
+export const STAGE_FULL_TEXT: Readonly<Record<'BA' | 'DEV' | 'QA', string>> = { BA: 'Business Analyst', DEV: 'Development', QA: 'Quality Assurance' };
+
 /** Nama jenis project (FR-02-01 butir 3). */
 export const PROJECT_TYPE_TEXT: Readonly<Record<ProjectType, string>> = { NEW: 'New', CHANGE_REQUEST: 'Change Request' };
 
@@ -52,11 +55,11 @@ export function projectStatusTone(status: ProjectStatus): Tone {
     case 'COMPLETED':
       return 'ok';
     case 'DEFERRED':
-      return 'hold';
+      return 'warn';
     case 'CANCELLED':
-      return 'neutral';
+      return 'cancel';
     default:
-      return 'neutral';
+      return 'backlog';
   }
 }
 
@@ -137,4 +140,50 @@ export function formatShift(workdays: number | null): string | null {
  */
 export function formatAssignees(assignees: ReadonlyArray<{ name: string }>): string {
   return assignees.length === 0 ? 'Belum ada PIC' : assignees.map((a) => a.name).join(', ');
+}
+
+/** Bahan untuk menulis keterangan estimasi sebuah tahapan. */
+export interface VarianceInput {
+  readonly status: StageStatus;
+  readonly shiftWorkdays: number | null;
+  readonly lateness: { readonly isLate: boolean; readonly daysPastCurrent: number; readonly daysPastBaseline: number };
+  readonly completion: CompletionVerdict | null;
+  readonly actualEnd: string | null;
+  readonly estimate: Estimate | null;
+}
+
+/**
+ * Menulis keterangan selisih estimasi tahapan: pergeseran estimasi selesai terhadap estimasi awal (hari kerja),
+ * keterlambatan terhadap estimasi terkini dan awal, atau selisih selesai aktual.
+ * Masukan: data tahapan siap tampil. Keluaran: daftar kalimat (kosong bila tidak ada selisih).
+ * Efek samping: tidak ada (fungsi murni).
+ * Rujukan: FR-13-03 butir 3, FR-13-05 butir 9, mockup v0.2 (fungsi variance), BL-14, BL-15.
+ */
+export function varianceLines(stage: VarianceInput): string[] {
+  const lines: string[] = [];
+  if (stage.shiftWorkdays !== null && stage.shiftWorkdays !== 0) {
+    lines.push(`Estimasi selesai bergeser ${stage.shiftWorkdays > 0 ? '+' : ''}${stage.shiftWorkdays} hari kerja dari estimasi awal`);
+  }
+  if (stage.status === 'DONE' && stage.completion) {
+    if (stage.completion.kind === 'LATE') lines.push(`Selesai aktual ${stage.completion.days} hari terlambat dari estimasi terkini`);
+    else if (stage.completion.kind === 'PAST_BASELINE') lines.push(`Selesai tepat waktu dari estimasi terkini, tetapi lewat estimasi awal +${stage.completion.days} hari`);
+    else lines.push('Selesai aktual tepat waktu dari estimasi terkini');
+  } else if (stage.lateness.isLate) {
+    const extra = stage.lateness.daysPastBaseline !== stage.lateness.daysPastCurrent ? ` (${stage.lateness.daysPastBaseline} hari dari estimasi awal)` : '';
+    lines.push(`Terlambat ${stage.lateness.daysPastCurrent} hari dari estimasi terkini${extra}`);
+  }
+  return lines;
+}
+
+/**
+ * Menulis petunjuk bagian Revisi estimasi menurut keadaan tahapan dan status tujuan yang dipilih.
+ * Masukan: apakah tahapan sedang Ditahan, status tujuan, dan hari keterlambatan (0 bila tidak terlambat). Keluaran: kalimat petunjuk.
+ * Efek samping: tidak ada (fungsi murni).
+ * Rujukan: FR-13-02 butir 3 (saran revisi saat dilanjutkan), FR-13-03 butir 2, mockup v0.2 (fungsi updRevHint).
+ */
+export function revisionHint(currentlyHeld: boolean, target: StageStatus, lateDays: number): string {
+  if (currentlyHeld && target !== 'HELD') return 'Tahapan dilanjutkan dari hold. Disarankan memasukkan estimasi baru bila jadwal berubah.';
+  if (target === 'HELD') return 'Tahapan akan ditahan. Estimasi baru dapat diisi nanti saat tahapan dilanjutkan.';
+  if (lateDays > 0) return `Tahapan terlambat ${lateDays} hari dari estimasi terkini. Sistem tidak mengubah tanggal otomatis; masukkan estimasi baru bila jadwal berubah.`;
+  return 'Ubah estimasi hanya bila jadwal pengerjaan memang berubah.';
 }
