@@ -49,7 +49,8 @@ model app_user {
   card_progress_event                                        card_progress_event[]
   card_reschedule                                            card_reschedule[]
   project                                                    project[]
-  project_stage                                              project_stage[]
+  project_stage_manual                                       project_stage[]       @relation("project_stage_manual_progress_byToapp_user")
+  project_stage_hold                                         project_stage[]       @relation("project_stage_hold_byToapp_user")
   session                                                    session[]
   stage_assignment                                           stage_assignment[]
   stage_hold_history_stage_hold_history_held_byToapp_user    stage_hold_history[]  @relation("stage_hold_history_held_byToapp_user")
@@ -224,12 +225,14 @@ model project_stage {
   actual_end           DateTime?            @db.Date
   hold_since           DateTime?            @db.Date
   hold_reason          String?              @db.VarChar(300)
+  hold_by              BigInt?
   manual_progress      Int?                 @db.SmallInt
   manual_progress_note String?              @db.VarChar(300)
   manual_progress_by   BigInt?
   manual_progress_at   DateTime?            @db.Timestamptz(6)
   version              Int                  @default(1)
-  app_user             app_user?            @relation(fields: [manual_progress_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  app_user             app_user?            @relation("project_stage_manual_progress_byToapp_user", fields: [manual_progress_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  hold_user            app_user?            @relation("project_stage_hold_byToapp_user", fields: [hold_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   project              project              @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   stage_assignment     stage_assignment[]
   stage_hold_history   stage_hold_history[]

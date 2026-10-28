@@ -49,6 +49,27 @@ Total: **87 uji** (59 unit termasuk uji arsitektur dan konvensi kode, 28 integra
 Penyempurnaan ini searah dengan Technical Design; `technical-design.md` dan `database-design.md` akan
 diselaraskan lewat revisi minor berikutnya bila pemilik menghendaki.
 
+## Irisan 2: Project dan tahapan (2026-10-28, sedang berjalan)
+
+**Status: sebagian.** Lapisan domain dan sisi tulis selesai dan teruji; sisi baca (Daftar, Gantt, Detail) dan layar
+belum. Belum di-commit (menunggu permintaan pemilik).
+
+| Bagian | Status | Bukti |
+|---|---|---|
+| Domain project (progres tahapan, laju dan Tertinggal, keterlambatan, status tampilan, revisi estimasi, penggabungan revisi harian, peringatan revisi, hak tahapan, perpindahan status, validasi project, model bar Gantt) | Selesai | 75 uji unit baru memakai angka AC FSD (hari ini = Rabu 28/10/2026) |
+| Use case tulis: `createProject`, `updateStagePlanning`, `updateStageStatus`, `setManualProgress`, `reviseStageEstimate`, `updateProjectInfo` | Selesai | 25 uji integrasi pada PostgreSQL 16 sungguhan (hak, validasi, konkurensi versi, audit, Assignment baru, riwayat hold) |
+| Repository Prisma project, rujukan master, sumber kartu sementara | Selesai | Dipakai uji integrasi di atas |
+| Query baca: `listProjects`, `getGantt`, `getProjectDetail`, `countProjectsByStatus`, Assignment baru | Belum | - |
+| Layar: tab Project (Daftar dan Gantt), Buat project, Detail project, dialog Perbarui tahapan | Belum | Acuan desain: `ux-ui/mockup/` |
+| `autoReviseFromCard` (FR-13-05, dipanggil kanban) | Menunggu irisan 3 | Aturan domainnya (`planAutoRevision`, `shouldMergeRevision`, `mergeRevisionNotes`) sudah ada dan teruji |
+
+### Penyempurnaan terhadap Technical Design (tidak mengubah keputusan)
+
+| Hal | Tertulis di Technical Design | Implementasi | Alasan |
+|---|---|---|---|
+| Pelaku yang memulai hold | `stage_hold_history.held_by` wajib terisi, tetapi `project_stage` tidak menyimpan pelaku hold berjalan | Migrasi 6 menambah kolom `project_stage.hold_by` dengan CHECK `(status = 'HELD') = (hold_by IS NOT NULL)` | Tanpa kolom ini, riwayat hold tidak dapat mencatat pelaku penahanan dengan benar (FR-13-02 butir 3). Uji skema hold diperbarui |
+| Sumber kartu bagi project | `CardSourcePort` diimplementasikan adapter kanban (TD §5.2) | Sementara `createPrismaCardSource` di modul project membaca tabel `card` langsung | Modul kanban baru dibuat pada irisan 3; adapter diganti saat itu, port tidak berubah |
+
 ## Rencana berikutnya
 
 Irisan 1 (akun dan master): klien database (Prisma `db pull`), auth (login, sesi, throttle, ganti dan reset
